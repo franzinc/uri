@@ -1,5 +1,5 @@
 #+(version= 8 1)
-(sys:defpatch "uri" 8
+(sys:defpatch "uri" 9
   "v1: don't canonicalize away path of / if there are a query or fragment;
 v2: handle merging of urns;
 v3: handle further case of merging urns and uris;
@@ -7,7 +7,8 @@ v4: fix merge-uris escaping; render-uri now a generic function;
 v5: add escape keyword to parse-uri;
 v6: Fix file://c:/ parsing on Windows;
 v7: Fixes to merge-uris of file://c:/.../ pathnames on Windows;
-v8: pathname-to-uri/uri-to-pathname handle chars needing escaping."
+v8: pathname-to-uri/uri-to-pathname handle chars needing escaping;
+v9: add newline and linefeed to list of escaped chars"
   :type :system
   :post-loadable t)
 
@@ -217,7 +218,10 @@ v8: pathname-to-uri/uri-to-pathname handle chars needing escaping."
     '(;; `delims' (except #\%, because it's handled specially):
       #\< #\> #\" #\space #\#
       ;; `unwise':
-      #\{ #\} #\| #\\ #\^ #\[ #\] #\`))
+      #\{ #\} #\| #\\ #\^ #\[ #\] #\`
+      ;; common sense:
+      #\newline #\linefeed
+      ))
 
 (defun reserved-char-vector (chars &key except)
   (do* ((a (make-array 127 :element-type 'bit :initial-element 0))

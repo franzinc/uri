@@ -24,6 +24,13 @@
 (eval-when (compile eval load) (use-package :net.uri))
 
 (test-set uri
+  ;; bug18546
+  (util.test:test "http://localhost/?x=%0Ax%20&y=1"
+		  (princ-to-string
+		   (net.uri:parse-uri
+		    "http://localhost/?x=%0Ax%20&y=1"))
+		  :test #'string=)
+  
   ;; bug18153
   (let* ((p (pathname "/foo/the/bar/foo the bar.cl"))
 	 (u (net.uri:parse-uri "file:///foo/the/bar/foo%20the%20bar.cl"))
