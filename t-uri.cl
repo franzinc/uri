@@ -22,12 +22,14 @@
 (eval-when (compile eval load) (use-package :net.uri))
 
 (test-set uri
-  ;; bug18546
+  ;; bug11527/bug18546
   (util.test:test
    "/simple-form?text=%F3%D4%D2%CF"
    (princ-to-string
     (net.uri:parse-uri "/simple-form?text=%F3%D4%D2%CF"))
    :test #'string=)
+  
+  ;; bug18582
   (util.test:test
    "http://user:fooa@host:800/foo/bar/foo"
    (princ-to-string
