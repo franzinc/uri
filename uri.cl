@@ -1,5 +1,5 @@
 #+(version= 8 1)
-(sys:defpatch "uri" 9
+(sys:defpatch "uri" 10
   "v1: don't canonicalize away path of / if there are a query or fragment;
 v2: handle merging of urns;
 v3: handle further case of merging urns and uris;
@@ -8,7 +8,8 @@ v5: add escape keyword to parse-uri;
 v6: Fix file://c:/ parsing on Windows;
 v7: Fixes to merge-uris of file://c:/.../ pathnames on Windows;
 v8: pathname-to-uri/uri-to-pathname handle chars needing escaping;
-v9: add newline and linefeed to list of escaped chars"
+v9: add newline and linefeed to list of escaped chars;
+v10: handle userinfo in authority, fix escaping issues."
   :type :system
   :post-loadable t)
 
@@ -17,7 +18,7 @@ v9: add newline and linefeed to list of escaped chars"
 ;; For general URI information see RFC2396.
 ;;
 ;; copyright (c) 1999-2005 Franz Inc, Berkeley, CA  - All rights reserved.
-;; copyright (c) 2002-2007 Franz Inc, Oakland, CA - All rights reserved.
+;; copyright (c) 2002-2009 Franz Inc, Oakland, CA - All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -30,8 +31,6 @@ v9: add newline and linefeed to list of escaped chars"
 ;; but without any warranty; without even the implied warranty of
 ;; merchantability or fitness for a particular purpose.  See the GNU
 ;; Lesser General Public License for more details.
-;;
-;; $Id: uri.cl,v 2.14.2.11 2008/10/02 16:14:36 layer Exp $
 
 (defpackage :net.uri
   (:use :common-lisp :excl)
@@ -41,7 +40,9 @@ v9: add newline and linefeed to list of escaped chars"
    #:copy-uri
 
    #:uri-scheme				; and slots
-   #:uri-host #:uri-port
+   #:uri-host
+   #:uri-userinfo
+   #:uri-port
    #:uri-path
    #:uri-query
    #:uri-fragment
@@ -78,6 +79,7 @@ v9: add newline and linefeed to list of escaped chars"
 ;;;; external:
    (scheme :initarg :scheme :initform nil :accessor uri-scheme)
    (host :initarg :host :initform nil :accessor uri-host)
+   (userinfo :initarg :userinfo :initform nil :accessor uri-userinfo)
    (port :initarg :port :initform nil :accessor uri-port)
    (path :initarg :path :initform nil :accessor uri-path)
    (query :initarg :query :initform nil :accessor uri-query)
@@ -120,6 +122,7 @@ v9: add newline and linefeed to list of escaped chars"
 
 (clear-caching-on-slot-change uri-scheme)
 (clear-caching-on-slot-change uri-host)
+(clear-caching-on-slot-change uri-userinfo)
 (clear-caching-on-slot-change uri-port)
 (clear-caching-on-slot-change uri-path)
 (clear-caching-on-slot-change uri-query)
@@ -131,6 +134,7 @@ v9: add newline and linefeed to list of escaped chars"
   `(make-instance ',(class-name (class-of self))
      :scheme ,(uri-scheme self)
      :host ,(uri-host self)
+     :userinfo ,(uri-userinfo self)
      :port ,(uri-port self)
      :path ',(uri-path self)
      :query ,(uri-query self)
@@ -146,6 +150,7 @@ v9: add newline and linefeed to list of escaped chars"
 		 &key place
 		      (scheme (when uri (uri-scheme uri)))
 		      (host (when uri (uri-host uri)))
+		      (userinfo (when uri (uri-userinfo uri)))
 		      (port (when uri (uri-port uri)))
 		      (path (when uri (uri-path uri)))
 		      (parsed-path
@@ -158,6 +163,7 @@ v9: add newline and linefeed to list of escaped chars"
   (if* place
      then (setf (uri-scheme place) scheme)
 	  (setf (uri-host place) host)
+	  (setf (uri-userinfo place) userinfo)
 	  (setf (uri-port place) port)
 	  (setf (uri-path place) path)
 	  (setf (.uri-parsed-path place) parsed-path)
@@ -171,13 +177,13 @@ v9: add newline and linefeed to list of escaped chars"
    elseif (eq 'uri class)
      then ;; allow the compiler to optimize the call to make-instance:
 	  (make-instance 'uri
-	    :scheme scheme :host host :port port :path path
-	    :parsed-path parsed-path
+	    :scheme scheme :host host :userinfo userinfo :port port
+	    :path path :parsed-path parsed-path
 	    :query query :fragment fragment :plist plist
 	    :escaped escaped :string nil :hashcode nil)
      else (make-instance class
-	    :scheme scheme :host host :port port :path path
-	    :parsed-path parsed-path
+	    :scheme scheme :host host :userinfo userinfo :port port
+	    :path path :parsed-path parsed-path
 	    :query query :fragment fragment :plist plist
 	    :escaped escaped :string nil :hashcode nil)))
 
@@ -199,7 +205,8 @@ v9: add newline and linefeed to list of escaped chars"
 (defun uri-authority (uri)
   (when (uri-host uri)
     (let ((*print-pretty* nil))
-      (format nil "~a~@[:~a~]" (uri-host uri) (uri-port uri)))))
+      (format nil "~@[~a~]~a~@[:~a~]" (uri-userinfo uri)
+	      (uri-host uri) (uri-port uri)))))
 
 (defun uri-nid (uri)
   (if* (equalp "urn" (uri-scheme uri))
@@ -299,7 +306,7 @@ v9: add newline and linefeed to list of escaped chars"
   
   (when (not escape-supplied) (setq escape (escape-p thing)))
 
-  (multiple-value-bind (scheme host port path query fragment)
+  (multiple-value-bind (scheme host userinfo port path query fragment)
       (parse-uri-string thing)
     (when scheme
       (setq scheme
@@ -317,6 +324,7 @@ v9: add newline and linefeed to list of escaped chars"
 	(make-instance 'urn :scheme scheme :nid host :nss path)))
     
     (when host (setq host (decode-escaped-encoding host escape)))
+    (when userinfo (setq userinfo (decode-escaped-encoding userinfo escape)))
     (when port
       (setq port (read-from-string port))
       (when (not (numberp port)) (error "port is not a number: ~s." port))
@@ -352,6 +360,7 @@ v9: add newline and linefeed to list of escaped chars"
 	    (make-instance 'uri
 	      :scheme scheme
 	      :host host
+	      :userinfo userinfo
 	      :port port
 	      :path path
 	      :query query
@@ -361,6 +370,7 @@ v9: add newline and linefeed to list of escaped chars"
 	    (make-instance class
 	      :scheme scheme
 	      :host host
+	      :userinfo userinfo
 	      :port port
 	      :path path
 	      :query query
@@ -396,6 +406,7 @@ v9: add newline and linefeed to list of escaped chars"
 	 (tokval nil)
 	 (scheme nil)
 	 (host nil)
+	 (userinfo nil)
 	 (port nil)
 	 (path-components '())
 	 (query nil)
@@ -406,7 +417,7 @@ v9: add newline and linefeed to list of escaped chars"
     (labels
 	(#+debug-uri-parse
 	 (.debug ()
-	   (format t "~&state: ~a~%" state))
+	   (format t "~&state: ~a, tokval=~s~%" state tokval))
 	 (read-token (kind &optional legal-chars)
 	   #+debug-uri-parse (.debug)
 	   (setq tokval nil)
@@ -442,6 +453,7 @@ URI ~s contains illegal character ~s at position ~d."
 			   (:query (case c (#\# (return :hash))))
 			   (:rest)
 			   (t (case c
+				(#\@ (return :atsign))
 				(#\: (return :colon))
 				(#\? (return :question))
 				(#\# (return :hash))
@@ -570,8 +582,24 @@ URI ~s contains illegal character ~s at position ~d."
 	      (setq state 6))
 	     (:string (failure))
 	     (:end (failure))))
-	  (11 ;; seen [<scheme>:]//<host>
+	  (11 ;; seen [<scheme>:]//<something>
+	   ;; Hack alert.  When I added handling of `userinfo', I did so
+	   ;; with a minimum of changes.  Instead of a <host> we now assume
+	   ;; that at this point we have either a `host' or `userinfo'.  It
+	   ;; would be better to change the FSM to look for the items
+	   ;; allowed by the RFC(2396) at this stage.  In state 12, if we
+	   ;; see an `@', then we'll go back to state 4 to get the host,
+	   ;; however some valid `userinfo' values will be flagged as
+	   ;; errors (one that starts with a colon, for example).
 	   (ecase (read-token t)
+	     (:atsign
+	      (if* userinfo
+		 then ;; already read host:port once
+		      (failure)
+		 else ;; haven't read host:port, but user:passwd
+		      (setq userinfo host)
+		      (setq host nil)
+		      (setq state 4)))
 	     (:colon (setq state 5))
 	     (:question (setq state 7))
 	     (:hash (setq state 8))
@@ -579,7 +607,7 @@ URI ~s contains illegal character ~s at position ~d."
 		     (setq state 6))
 	     (:string (impossible))
 	     (:end (setq state 9))))
-	  (5 ;; seen [<scheme>:]//<host>:
+	  (5 ;; seen [<scheme>:]//<host-or-userinfo>:
 	   (ecase (read-token t)
 	     (:colon (failure))
 	     (:question (failure))
@@ -589,8 +617,16 @@ URI ~s contains illegal character ~s at position ~d."
 	     (:string (setq port tokval)
 		      (setq state 12))
 	     (:end (failure))))
-	  (12 ;; seen [<scheme>:]//<host>:[<port>]
+	  (12 ;; seen [<scheme>:]//<host-or-userinfo>:[<port-or-password>]
 	   (ecase (read-token t)
+	     (:atsign
+	      (if* userinfo
+		 then ;; already read host:port once
+		      (failure)
+		 else ;; haven't read host:port, but user:passwd
+		      (setq userinfo (concatenate 'simple-string host ":" port))
+		      (setq host nil port nil)
+		      (setq state 4)))
 	     (:colon (failure))
 	     (:question (setq state 7))
 	     (:hash (setq state 8))
@@ -635,7 +671,7 @@ URI ~s contains illegal character ~s at position ~d."
 	  (9 ;; done
 	   (return
 	     (values
-	      scheme host port
+	      scheme host userinfo port
 	      (apply #'concatenate 'simple-string (nreverse path-components))
 	      query fragment)))
 	  ;; URN parsing:
@@ -651,6 +687,7 @@ URI ~s contains illegal character ~s at position ~d."
 	  (17 ;; seen urn:<nid>:, rest is nss
 	   (return (values scheme
 			   nid
+			   nil
 			   nil
 			   (progn
 			     (setq illegal-chars *reserved-nss-characters*)
@@ -738,8 +775,8 @@ URI ~s contains illegal character ~s at position ~d."
 	       "Non-hexidecimal digits after %: %c%c." ch ch2))
 	    (let ((ci (+ (* 16 chc) chc2)))
 	      (if* (or (null reserved-chars)
-		       (> ci 127)	; bug11527
-		       (= 0 (sbit reserved-chars ci)))
+		       (and (<= ci 127)	; bug11527
+                            (= 0 (sbit reserved-chars ci))))
 		 then ;; ok as is
 		      (setf (schar new-string new-i)
 			(code-char ci))
@@ -767,6 +804,7 @@ URI ~s contains illegal character ~s at position ~d."
     (setf (uri-string uri)
       (let ((scheme (uri-scheme uri))
 	    (host (uri-host uri))
+	    (userinfo (uri-userinfo uri))
 	    (port (uri-port uri))
 	    (path (uri-path uri))
 	    (query (uri-query uri))
@@ -779,6 +817,8 @@ URI ~s contains illegal character ~s at position ~d."
 	     *reserved-characters* escape))
 	  (when scheme ":")
 	  (when (or host (eq :file scheme)) "//")
+	  (when userinfo userinfo)
+	  (when userinfo "@")
 	  (when host
 	    (encode-escaped-encoding
 	     host *reserved-authority-characters* escape))
@@ -860,8 +900,7 @@ URI ~s contains illegal character ~s at position ~d."
        new-string)
     (setq ci (char-int (setq c (schar string i))))
     (if* (or (null reserved-chars)
-	     (> ci 127)
-	     (= 0 (sbit reserved-chars ci)))
+	     (and (<= ci 127) (= 0 (sbit reserved-chars ci))))
        then ;; ok as is
 	    (incf new-i)
 	    (setf (schar new-string new-i) c)
@@ -900,6 +939,7 @@ URI ~s contains illegal character ~s at position ~d."
     (when (and (null (uri-path uri))
 	       (null (uri-scheme uri))
 	       (null (uri-host uri))
+	       (null (uri-userinfo uri))
 	       (null (uri-port uri))
 	       (null (uri-query uri)))
       (return-from merge-uris
@@ -920,6 +960,7 @@ URI ~s contains illegal character ~s at position ~d."
 ;;;; step 4
     (when (uri-host uri) (go :done))
     (setf (uri-host uri) (uri-host base))
+    (setf (uri-userinfo uri) (uri-userinfo base))
     (setf (uri-port uri) (uri-port base))
     
 ;;;; step 5
@@ -1050,6 +1091,7 @@ URI ~s contains illegal character ~s at position ~d."
 (defmethod enough-uri ((uri uri) (base uri) &optional place)
   (let ((new-scheme nil)
 	(new-host nil)
+	(new-userinfo nil)
 	(new-port nil)
 	(new-parsed-path nil))
 
@@ -1057,13 +1099,13 @@ URI ~s contains illegal character ~s at position ~d."
 		   (not (equalp (uri-scheme uri) (uri-scheme base))))
 	      (and (uri-host uri)
 		   (not (equalp (uri-host uri) (uri-host base))))
+	      (not (equalp (uri-userinfo uri) (uri-userinfo base)))
 	      (not (equalp (uri-port uri) (uri-port base))))
       (return-from enough-uri uri))
 
-    (when (null (uri-host uri))
-      (setq new-host (uri-host base)))
-    (when (null (uri-port uri))
-      (setq new-port (uri-port base)))
+    (when (null (uri-host uri)) (setq new-host (uri-host base)))
+    (when (null (uri-userinfo uri)) (setq new-userinfo (uri-userinfo base)))
+    (when (null (uri-port uri)) (setq new-port (uri-port base)))
     
     (when (null (uri-scheme uri))
       (setq new-scheme (uri-scheme base)))
@@ -1099,6 +1141,7 @@ URI ~s contains illegal character ~s at position ~d."
 	  (new-plist (copy-list (uri-plist uri))))
       (if* (and (null new-scheme)
 		(null new-host)
+		(null new-userinfo)
 		(null new-port)
 		(null new-path)
 		(null new-parsed-path)
@@ -1115,6 +1158,7 @@ URI ~s contains illegal character ~s at position ~d."
 			:place place
 			:scheme new-scheme
 			:host new-host
+			:userinfo new-userinfo
 			:port new-port
 			:path new-path
 			:parsed-path new-parsed-path
@@ -1238,6 +1282,7 @@ URI ~s contains illegal character ~s at position ~d."
 			(:ftp 21)
 			(:telnet 23))))
     (and (equalp (uri-host uri1) (uri-host uri2))
+	 (equalp (uri-userinfo uri1) (uri-userinfo uri2))
 	 (eql (or (uri-port uri1) default-port)
 	      (or (uri-port uri2) default-port))
 	 (string= (uri-path uri1) (uri-path uri2))

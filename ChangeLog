@@ -1,3 +1,10 @@
+2009-09-03  Kevin Layer  <layer@franz.com>
+
+	* uri.cl:
+	- bug18546: fix from Marijn, which fixes bug11527 in a better way
+	- bug18582: handle `userinfo' in the parser
+	* t-uri.cl: tests for the above
+
 2009-08-17  Kevin Layer  <layer@gemini.franz.com>
 
 	* uri.cl: bug18546: add newline and linefeed to reserved chars

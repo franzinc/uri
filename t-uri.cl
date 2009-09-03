@@ -1,5 +1,5 @@
 ;; copyright (c) 1999-2005 Franz Inc, Berkeley, CA  - All rights reserved.
-;; copyright (c) 2002-2007 Franz Inc, Oakland, CA - All rights reserved.
+;; copyright (c) 2002-2009 Franz Inc, Oakland, CA - All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -12,8 +12,6 @@
 ;; but without any warranty; without even the implied warranty of
 ;; merchantability or fitness for a particular purpose.  See the GNU
 ;; Lesser General Public License for more details.
-;;
-;; $Id: t-uri.cl,v 1.10.2.6 2008/10/02 16:14:36 layer Exp $
 
 (eval-when (compile load eval)
   (require :test)
@@ -24,6 +22,33 @@
 (eval-when (compile eval load) (use-package :net.uri))
 
 (test-set uri
+  ;; bug18546
+  (util.test:test
+   "/simple-form?text=%F3%D4%D2%CF"
+   (princ-to-string
+    (net.uri:parse-uri "/simple-form?text=%F3%D4%D2%CF"))
+   :test #'string=)
+  (util.test:test
+   "http://user:fooa@host:800/foo/bar/foo"
+   (princ-to-string
+    (net.uri:parse-uri "http://user:foo%61@host:800/foo/bar/foo"))
+   :test #'string=)
+  (util.test:test
+   "http://user@host:800/foo/bar/foo"
+   (princ-to-string
+    (net.uri:parse-uri "http://user@host:800/foo/bar/foo"))
+   :test #'string=)
+  (util.test:test
+   "http://user:fooa@host/foo/bar/foo"
+   (princ-to-string
+    (net.uri:parse-uri "http://user:foo%61@host/foo/bar/foo"))
+   :test #'string=)
+  (util.test:test
+   "http://user@host/foo/bar/foo"
+   (princ-to-string
+    (net.uri:parse-uri "http://user@host/foo/bar/foo"))
+   :test #'string=)
+  
   ;; bug18546
   (util.test:test "http://localhost/?x=%0Ax%20&y=1"
 		  (princ-to-string
