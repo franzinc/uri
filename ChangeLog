@@ -1,3 +1,7 @@
+2009-09-04  Kevin Layer  <layer@gemini.franz.com>
+
+	* uri.cl, t-uri.cl: minor fix to previous commit
+
 2009-09-03  Kevin Layer  <layer@franz.com>
 
 	* uri.cl:

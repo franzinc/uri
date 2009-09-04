@@ -30,6 +30,22 @@
    :test #'string=)
   
   ;; bug18582
+  (util.test:test "foo:bar"
+		  (net.uri:uri-userinfo
+		   (net.uri:parse-uri "http://foo:bar@localhost/"))
+		  :test #'string=)
+  (util.test:test "foo"
+		  (net.uri:uri-userinfo
+		   (net.uri:parse-uri "http://foo@localhost/"))
+		  :test #'string=)
+  (util.test:test "foo:bar@localhost"
+		  (net.uri:uri-authority
+		   (net.uri:parse-uri "http://foo:bar@localhost/"))
+		  :test #'string=)
+  (util.test:test "foo@localhost"
+		  (net.uri:uri-authority
+		   (net.uri:parse-uri "http://foo@localhost/"))
+		  :test #'string=)
   (util.test:test
    "http://user:fooa@host:800/foo/bar/foo"
    (princ-to-string

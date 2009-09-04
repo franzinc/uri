@@ -205,7 +205,7 @@ v10: handle userinfo in authority, fix escaping issues."
 (defun uri-authority (uri)
   (when (uri-host uri)
     (let ((*print-pretty* nil))
-      (format nil "~@[~a~]~a~@[:~a~]" (uri-userinfo uri)
+      (format nil "~@[~a@~]~a~@[:~a~]" (uri-userinfo uri)
 	      (uri-host uri) (uri-port uri)))))
 
 (defun uri-nid (uri)
