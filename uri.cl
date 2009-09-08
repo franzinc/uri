@@ -388,7 +388,7 @@ v10: handle userinfo in authority, fix escaping issues."
 
 (defvar *strict-parse* t)
 
-;;(eval-when (compile eval load) (pushnew :debug-uri-parse *features*))
+(eval-when (compile eval load) (pushnew :debug-uri-parse *features*))
 
 (defun parse-uri-string (string &aux (illegal-chars *illegal-characters*))
   (declare (optimize (speed 3)))
@@ -452,8 +452,14 @@ URI ~s contains illegal character ~s at position ~d."
 				    (#\# (return :hash))))
 			   (:query (case c (#\# (return :hash))))
 			   (:rest)
-			   (t (case c
+			   (:authority
+			    (case c
 				(#\@ (return :atsign))
+				(#\: (return :colon))
+				(#\? (return :question))
+				(#\# (return :hash))
+				(#\/ (return :slash))))
+			   (t (case c
 				(#\: (return :colon))
 				(#\? (return :question))
 				(#\# (return :hash))

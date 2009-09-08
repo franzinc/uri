@@ -1,3 +1,7 @@
+2009-09-08  Kevin Layer  <layer@gemini.franz.com>
+
+	* uri.cl: fix to parser (was erroring on parsing mailto uri's)
+
 2009-09-04  Kevin Layer  <layer@gemini.franz.com>
 
 	* uri.cl, t-uri.cl: minor fix to previous commit

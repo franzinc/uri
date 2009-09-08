@@ -22,6 +22,15 @@
 (eval-when (compile eval load) (use-package :net.uri))
 
 (test-set uri
+  (util.test:test :mailto
+		  (net.uri:uri-scheme
+		   (net.uri:parse-uri "mailto:support@franz.com"))
+		  :test #'eq)
+  (util.test:test "support@franz.com"
+		  (net.uri:uri-path
+		   (net.uri:parse-uri "mailto:support@franz.com"))
+		  :test #'string=)
+  
   ;; bug11527/bug18546
   (util.test:test
    "/simple-form?text=%F3%D4%D2%CF"
