@@ -388,7 +388,8 @@ v10: handle userinfo in authority, fix escaping issues."
 
 (defvar *strict-parse* t)
 
-(eval-when (compile eval load) (pushnew :debug-uri-parse *features*))
+;;(eval-when (compile) (pushnew :debug-uri-parse *features*))
+(eval-when (compile) (setq *features* (delete :debug-uri-parse *features*)))
 
 (defun parse-uri-string (string &aux (illegal-chars *illegal-characters*))
   (declare (optimize (speed 3)))
@@ -540,7 +541,7 @@ URI ~s contains illegal character ~s at position ~d."
 	     (:end (push "/" path-components)
 		   (setq state 9))))
 	  (4 ;; seen [<scheme>:]//
-	   (ecase (read-token t)
+	   (ecase (read-token :authority)
 	     (:colon (failure))
 	     (:question (failure))
 	     (:hash (failure))
@@ -597,7 +598,7 @@ URI ~s contains illegal character ~s at position ~d."
 	   ;; see an `@', then we'll go back to state 4 to get the host,
 	   ;; however some valid `userinfo' values will be flagged as
 	   ;; errors (one that starts with a colon, for example).
-	   (ecase (read-token t)
+	   (ecase (read-token :authority)
 	     (:atsign
 	      (if* userinfo
 		 then ;; already read host:port once
@@ -614,7 +615,7 @@ URI ~s contains illegal character ~s at position ~d."
 	     (:string (impossible))
 	     (:end (setq state 9))))
 	  (5 ;; seen [<scheme>:]//<host-or-userinfo>:
-	   (ecase (read-token t)
+	   (ecase (read-token :authority)
 	     (:colon (failure))
 	     (:question (failure))
 	     (:hash (failure))
@@ -624,7 +625,7 @@ URI ~s contains illegal character ~s at position ~d."
 		      (setq state 12))
 	     (:end (failure))))
 	  (12 ;; seen [<scheme>:]//<host-or-userinfo>:[<port-or-password>]
-	   (ecase (read-token t)
+	   (ecase (read-token :authority)
 	     (:atsign
 	      (if* userinfo
 		 then ;; already read host:port once
