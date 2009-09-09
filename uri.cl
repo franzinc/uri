@@ -389,7 +389,6 @@ v10: handle userinfo in authority, fix escaping issues."
 (defvar *strict-parse* t)
 
 ;;(eval-when (compile) (pushnew :debug-uri-parse *features*))
-(eval-when (compile) (setq *features* (delete :debug-uri-parse *features*)))
 
 (defun parse-uri-string (string &aux (illegal-chars *illegal-characters*))
   (declare (optimize (speed 3)))
