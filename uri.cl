@@ -326,7 +326,6 @@ v10: handle userinfo in authority, fix escaping issues."
     (when host (setq host (decode-escaped-encoding host escape)))
     (when userinfo (setq userinfo (decode-escaped-encoding userinfo escape)))
     (when port
-      (setq port (read-from-string port))
       (when (not (numberp port)) (error "port is not a number: ~s." port))
       (when (not (plusp port))
 	(error "port is not a positive integer: ~d." port))
@@ -675,6 +674,11 @@ URI ~s contains illegal character ~s at position ~d."
 		      (setq state 9))
 	     (:end (setq state 9))))
 	  (9 ;; done
+	   (when port
+	     (multiple-value-bind (int length)
+		 (parse-integer port :junk-allowed t :radix 10)
+	       (when (and int (= length (length port)))
+		 (setq port int))))
 	   (return
 	     (values
 	      scheme host userinfo port
