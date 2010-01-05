@@ -54,11 +54,11 @@ Installation
 
 Start your lisp and load uri.cl which is part of this project:
 
-    (load "/path/to/your/uri.cl")
+    (load (compile-file "/path/to/your/uri.cl"))
 
 To run the test suite, load the tests.
 
-    (load "/pathto/your/t-uri.cl")
+    (load (compile-file "/pathto/your/t-uri.cl"))
 
 Configuration
 -------------
