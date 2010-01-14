@@ -1,7 +1,3 @@
 Release notes entries for the next release.     -*- mode: text -*-
 
-9/3/09: (patch v10 for 8.1)
-
-  - parsing handles `userinfo' from RFC2396
-  - export uri-userinfo to access newly created slot
-
+1/14/10: contents moved to RELNOTES.82 and rfe9244

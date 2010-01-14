@@ -1,0 +1,5 @@
+9/3/09: (patch v10 for 8.1)
+
+  - parsing handles `userinfo' from RFC2396
+  - export uri-userinfo to access newly created slot
+
