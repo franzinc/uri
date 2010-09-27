@@ -522,7 +522,21 @@ URI ~s contains illegal character ~s at position ~d."
 	  (10 ;; seen <scheme>:<token>
 	   (let ((token tokval))
 	     (ecase (read-token t)
-	       (:colon (failure))
+	       (:colon
+                ;; what follows the first colon is an opaque-part; we
+                ;; treat it as a path component.
+                (return (values scheme
+                                nil
+                                nil
+                                nil
+                                (concatenate 'string
+                                             token
+                                             ":"
+                                             (progn
+                                               (setq illegal-chars *illegal-characters*)
+                                               (read-token :rest)
+                                               tokval))
+                                nil)))
 	       (:question (push token path-components)
 			  (setq state 7))
 	       (:hash (push token path-components)

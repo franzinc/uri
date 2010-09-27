@@ -30,6 +30,12 @@
 		  (net.uri:uri-path
 		   (net.uri:parse-uri "mailto:support@franz.com"))
 		  :test #'string=)
+  ;; bug19680
+  (util.test:test
+   "tag:govshare.info,2005:rdf/census/"
+   (princ-to-string
+    (net.uri:parse-uri "tag:govshare.info,2005:rdf/census/"))
+   :test #'string=)
   
   ;; bug11527/bug18546
   (util.test:test
