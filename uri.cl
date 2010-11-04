@@ -13,6 +13,12 @@ v10: handle userinfo in authority, fix escaping issues."
   :type :system
   :post-loadable t)
 
+#+(version= 8 2)
+(sys:defpatch "uri" 1
+  "v1: make canonicalization of / optional for schemes."
+  :type :system
+  :post-loadable t)
+
 ;; -*- mode: common-lisp; package: net.uri -*-
 ;; Support for URIs in Allegro.
 ;; For general URI information see RFC2396.
