@@ -301,7 +301,8 @@ v10: handle userinfo in authority, fix escaping issues."
 
 
 (defun parse-uri (thing &key (class 'uri)
-			     (escape nil escape-supplied))
+			     (escape nil escape-supplied)
+                             (canonicalize-schemes '(:http :https :ftp)))
   (when (uri-p thing) (return-from parse-uri thing))
   
   (when (not escape-supplied) (setq escape (escape-p thing)))
@@ -340,7 +341,7 @@ v10: handle userinfo in authority, fix escaping issues."
     (when (or (string= "" path)
 	      (and ;; we canonicalize away a reference to just /:
 	       scheme
-	       (member scheme '(:http :https :ftp) :test #'eq)
+	       (member scheme canonicalize-schemes :test #'eq)
 	       (string= "/" path)
 	       ;; but only if the rest of the parse didn't see anything
 	       (null query)
