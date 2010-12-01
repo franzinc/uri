@@ -14,8 +14,9 @@ v10: handle userinfo in authority, fix escaping issues."
   :post-loadable t)
 
 #+(version= 8 2)
-(sys:defpatch "uri" 1
-  "v1: make canonicalization of / optional for schemes."
+(sys:defpatch "uri" 2
+  "v1: make canonicalization of / optional for schemes;
+v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/)."
   :type :system
   :post-loadable t)
 
@@ -24,7 +25,7 @@ v10: handle userinfo in authority, fix escaping issues."
 ;; For general URI information see RFC2396.
 ;;
 ;; copyright (c) 1999-2005 Franz Inc, Berkeley, CA  - All rights reserved.
-;; copyright (c) 2002-2009 Franz Inc, Oakland, CA - All rights reserved.
+;; copyright (c) 2002-2010 Franz Inc, Oakland, CA - All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -523,19 +524,19 @@ URI ~s contains illegal character ~s at position ~d."
 	   (let ((token tokval))
 	     (ecase (read-token t)
 	       (:colon
-                ;; what follows the first colon is an opaque-part; we
-                ;; treat it as a path component.
+		;; what follows the first colon is an opaque-part; we
+		;; treat it as a path component.
                 (return (values scheme
                                 nil
                                 nil
                                 nil
                                 (concatenate 'string
-                                             token
-                                             ":"
-                                             (progn
-                                               (setq illegal-chars *illegal-characters*)
-                                               (read-token :rest)
-                                               tokval))
+				  token
+				  ":"
+				  (progn
+				    (setq illegal-chars *illegal-characters*)
+				    (read-token :rest)
+				    tokval))
                                 nil)))
 	       (:question (push token path-components)
 			  (setq state 7))
