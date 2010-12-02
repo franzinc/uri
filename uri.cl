@@ -530,7 +530,7 @@ URI ~s contains illegal character ~s at position ~d."
                                 nil
                                 nil
                                 nil
-                                (concatenate 'string
+                                (concatenate 'simple-string
 				  token
 				  ":"
 				  (progn
