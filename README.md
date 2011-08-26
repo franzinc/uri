@@ -46,7 +46,7 @@ and not
 as RFC 2396 would indicate.
 
 In the future, further comparisons between the implementation and RFC
-2396 will be done, and changes made to bring our implementation into
+3986 will be done, and changes made to bring our implementation into
 compliance with it.
 
 Author
