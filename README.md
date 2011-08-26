@@ -25,17 +25,34 @@ of URLs, define a syntax for identifying an abstract or physical
 resource.  Read the RFC below for more general information about
 URIs.
 
+This is the same URI implementation that first appeared in Allegro CL
+6.0. Following RFC 2396 as closely as possible was an important goal
+for the project, and some of the tests came directly from the RFC.
+RFC 2396 has since been obsoleted by RFC 3986.  At least in one
+contentious area, relative URL resolution with only a query component,
+our implementation follows RFC 3986 and not 2396.  That is
+
+    (net.uri:merge-uris (net.uri:parse-uri "?bar")
+                        (net.uri:parse-uri "http://example.com/foo"))
+
+yields
+
+    #<uri http://example.com/foo?bar>
+
+and not
+
+    #<uri http://example.com/?bar>
+
+as RFC 2396 would indicate.
+
+In the future, further comparisons between the implementation and RFC
+2396 will be done, and changes made to bring our implementation into
+compliance with it.
+
 Author
 ------
 
 Kevin Layer, Franz Inc.
-
-Author comments
----------------
-
-This is the same URI implementation that first appeared in Allegro CL
-6.0. Following RFC 2396 as closely as possible was an important goal
-for the project, and some of the tests came directly from the RFC.
 
 Platforms
 ----------
