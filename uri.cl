@@ -581,20 +581,23 @@ URI ~s contains illegal character ~s at position ~d."
 		 else (failure)))
 	     (:string
 	      ;; Need to look for c:/...
-	      (let ((on-windows #+mswindows t #-mswindows nil)
-		    c)
-		(if* (and on-windows 
-			  (equalp "file" scheme)
-			  (= 1 (length tokval))
+	      #+mswindows
+	      (if* (and (equalp "file" scheme)
+			(= 1 (length tokval))
+			(let (c)
 			  (or (<= #.(char-code #\a)
 				  (setq c (char-code (schar tokval 0)))
 				  #.(char-code #\z))
-			      (<= #.(char-code #\A) c #.(char-code #\Z))))
-		   then ;; seen file://x
-			(push tokval path-components)
-			(setq state 18)
-		   else (setq host tokval)
-			(setq state 11))))
+			      (<= #.(char-code #\A) c #.(char-code #\Z)))))
+		 then ;; seen file://x
+		      (push tokval path-components)
+		      (setq state 18)
+		 else (setq host tokval)
+		      (setq state 11))
+	      #-mswindows
+	      (progn
+		(setq host tokval)
+		(setq state 11)))
 	     (:end (failure))))
 	  #+mswindows
 	  (18 ;; seen file://x
