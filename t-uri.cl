@@ -22,6 +22,14 @@
 (eval-when (compile eval load) (use-package :net.uri))
 
 (test-set uri
+  (format t ";;;;;;; *render-include-slash-on-null-path*=t~%")
+  (let ((net.uri::*render-include-slash-on-null-path* t))
+    (all-uri-tests))
+  (format t ";;;;;;; *render-include-slash-on-null-path*=nil~%")
+  (let ((net.uri::*render-include-slash-on-null-path* nil))
+    (all-uri-tests)))
+
+(defun all-uri-tests ()
   (util.test:test :mailto
 		  (net.uri:uri-scheme
 		   (net.uri:parse-uri "mailto:support@franz.com"))
@@ -149,10 +157,17 @@
    :test #'uri=)
   
   ;; bug17656
-  (util.test:test
-   "http://www.franz.com"
-   (render-uri (net.uri:parse-uri "http://www.franz.com") nil)
-   :test #'string=)
+  (dolist (s '("http://www.franz.com"
+	       "http://www.franz.com/"
+	       "http://www.franz.com:/"
+	       "http://www.franz.com:80/"))
+    (util.test:test
+     (if net.uri::*render-include-slash-on-null-path*
+	 "http://www.franz.com/"
+       "http://www.franz.com")
+     (render-uri (net.uri:parse-uri s) nil)
+     :test #'string=))
+  
   (util.test:test
    "urn:bar:foo"
    (render-uri (net.uri:parse-uri "urn:bar:foo") nil)
@@ -173,6 +188,12 @@
   (let ((u (net.uri:parse-uri "foo://bar:10/baz")))
     (util.test:test :foo (net.uri:uri-scheme u)
 		    :test #'eq))
+  
+  ;; bug21361
+  (let ((u1 (net.uri:parse-uri "http://www.exampe.com/path#"))
+	(u2 (net.uri:parse-uri "http://www.exampe.com/path")))
+    (util.test:test u1 u2 :test (lambda (a b)
+				  (not (uri= a b)))))
 
   (unintern-uri t)
 
@@ -182,54 +203,61 @@
 
     (dolist (x `(;; (relative-uri result base-uri compare-function)
 ;;;; RFC Appendix C.1 (normal examples)
-		 ("g:h" "g:h" ,base-uri)
-		 ("g" "http://a/b/c/g" ,base-uri)
-		 ("./g" "http://a/b/c/g" ,base-uri)
-		 ("g/" "http://a/b/c/g/" ,base-uri)
-		 ("/g" "http://a/g" ,base-uri) 
-		 ("//g" "http://g" ,base-uri)
+		 ("g:h"           "g:h" 		  ,base-uri)
+		 ("g"             "http://a/b/c/g" 	  ,base-uri)
+		 ("./g"           "http://a/b/c/g" 	  ,base-uri)
+		 ("g/"            "http://a/b/c/g/" 	  ,base-uri)
+		 ("/g"            "http://a/g" 		  ,base-uri) 
+		 ("//g"           "http://g" 		  ,base-uri)
 ;;; The following test was changed and is different the corresponding
 ;;; example in appendix C of RFC 2396 because of the clarification of this
 ;;; example given here:
 ;;; http://www.apache.org/~fielding/uri/rev-2002/issues.html#003-relative-query
-		 #-ignore ("?y" "http://a/b/c/d;p?y" ,base-uri) 
-		 #+ignore ("?y" "http://a/b/c/?y" ,base-uri) 
-		 ("g?y" "http://a/b/c/g?y" ,base-uri)
-		 ("#s" "http://a/b/c/d;p?q#s" ,base-uri) 
-		 ("g#s" "http://a/b/c/g#s" ,base-uri) 
-		 ("g?y#s" "http://a/b/c/g?y#s" ,base-uri)
-		 (";x" "http://a/b/c/;x" ,base-uri) 
-		 ("g;x" "http://a/b/c/g;x" ,base-uri) 
-		 ("g;x?y#s" "http://a/b/c/g;x?y#s" ,base-uri)
-		 ("." "http://a/b/c/" ,base-uri) 
-		 ("./" "http://a/b/c/" ,base-uri) 
-		 (".." "http://a/b/" ,base-uri) 
-		 ("../" "http://a/b/" ,base-uri)
-		 ("../g" "http://a/b/g" ,base-uri) 
-		 ("../.." "http://a/" ,base-uri) 
-		 ("../../" "http://a/" ,base-uri)
-		 ("../../g" "http://a/g" ,base-uri)
+;;; NOTE: RFC 3986 fixed the example.
+		 ("?y"            "http://a/b/c/d;p?y" 	  ,base-uri) 
+		 ("g?y"           "http://a/b/c/g?y" 	  ,base-uri)
+		 ("#s"            "http://a/b/c/d;p?q#s"  ,base-uri) 
+		 ("g#s"           "http://a/b/c/g#s" 	  ,base-uri) 
+		 ("g?y#s"         "http://a/b/c/g?y#s" 	  ,base-uri)
+		 (";x"            "http://a/b/c/;x" 	  ,base-uri) 
+		 ("g;x"           "http://a/b/c/g;x" 	  ,base-uri) 
+		 ("g;x?y#s"       "http://a/b/c/g;x?y#s"  ,base-uri)
+		 ("."             "http://a/b/c/" 	  ,base-uri) 
+		 ("./"            "http://a/b/c/" 	  ,base-uri) 
+		 (".."            "http://a/b/" 	  ,base-uri) 
+		 ("../"           "http://a/b/" 	  ,base-uri)
+		 ("../g"          "http://a/b/g" 	  ,base-uri) 
+		 ("../.."         "http://a/" 		  ,base-uri) 
+		 ("../../"        "http://a/" 		  ,base-uri)
+		 ("../../g"       "http://a/g" 		  ,base-uri)
 ;;;; RFC Appendix C.2 (abnormal examples)
-		 ("" "http://a/b/c/d;p?q" ,base-uri) 
-		 ("../../../g" "http://a/../g" ,base-uri)
-		 ("../../../../g" "http://a/../../g" ,base-uri) 
-		 ("/./g" "http://a/./g" ,base-uri) 
-		 ("/../g" "http://a/../g" ,base-uri)
-		 ("g." "http://a/b/c/g." ,base-uri) 
-		 (".g" "http://a/b/c/.g" ,base-uri) 
-		 ("g.." "http://a/b/c/g.." ,base-uri)
-		 ("..g" "http://a/b/c/..g" ,base-uri) 
-		 ("./../g" "http://a/b/g" ,base-uri) 
-		 ("./g/." "http://a/b/c/g/" ,base-uri)
-		 ("g/./h" "http://a/b/c/g/h" ,base-uri) 
-		 ("g/../h" "http://a/b/c/h" ,base-uri) 
-		 ("g;x=1/./y" "http://a/b/c/g;x=1/y" ,base-uri)
-		 ("g;x=1/../y" "http://a/b/c/y" ,base-uri) 
-		 ("g?y/./x" "http://a/b/c/g?y/./x" ,base-uri)
-		 ("g?y/../x" "http://a/b/c/g?y/../x" ,base-uri) 
-		 ("g#s/./x" "http://a/b/c/g#s/./x" ,base-uri)
-		 ("g#s/../x" "http://a/b/c/g#s/../x" ,base-uri) 
-		 ("http:g" "http:g" ,base-uri)
+		 (""              "http://a/b/c/d;p?q" 	  ,base-uri) 
+;;;; RFC 2396 and 3986 differ on this block of 4:
+		 ;; these two return the RFC 3986 answer:
+		 ("../../../g"    "http://a/g"  	  ,base-uri)
+		 ("../../../../g" "http://a/g" 	          ,base-uri)
+		 ;; these two return the RFC 2396 answer:
+		 ("/./g"          "http://a/./g"   	  ,base-uri)
+		 ("/../g"         "http://a/../g"         ,base-uri)
+;;;; ...end differing examples
+		 ("g."            "http://a/b/c/g."       ,base-uri) 
+		 (".g"            "http://a/b/c/.g"       ,base-uri) 
+		 ("g.."           "http://a/b/c/g.."      ,base-uri)
+		 ("..g"           "http://a/b/c/..g"      ,base-uri) 
+		 
+		 ("./../g"        "http://a/b/g"          ,base-uri) 
+		 ("./g/."         "http://a/b/c/g/"       ,base-uri)
+		 ("g/./h"         "http://a/b/c/g/h"      ,base-uri) 
+		 ("g/../h"        "http://a/b/c/h"        ,base-uri) 
+		 ("g;x=1/./y"     "http://a/b/c/g;x=1/y"  ,base-uri)
+		 ("g;x=1/../y"    "http://a/b/c/y"        ,base-uri) 
+
+		 ("g?y/./x"       "http://a/b/c/g?y/./x"  ,base-uri)
+		 ("g?y/../x"      "http://a/b/c/g?y/../x" ,base-uri) 
+		 ("g#s/./x"       "http://a/b/c/g#s/./x"  ,base-uri)
+		 ("g#s/../x"      "http://a/b/c/g#s/../x" ,base-uri) 
+
+		 ("http:g"        "http:g"                ,base-uri)
 
 		 ("foo/bar/baz.htm#foo"
 		  "http://a/b/foo/bar/baz.htm#foo"
@@ -542,7 +570,8 @@
 		  (pathname-to-uri (pathname "/foo/bar.cl"))))
 	  res)
     
-    (push `(util.test:test t
+    ;; not true anymore, due to bug21361
+    (push `(util.test:test nil
 			   (uri= (parse-uri "foo") (parse-uri "foo#")))
 	  res)
     

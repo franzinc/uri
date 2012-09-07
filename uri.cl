@@ -14,9 +14,16 @@ v10: handle userinfo in authority, fix escaping issues."
   :post-loadable t)
 
 #+(version= 8 2)
-(sys:defpatch "uri" 2
+(sys:defpatch "uri" 3
   "v1: make canonicalization of / optional for schemes;
-v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/)."
+v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
+v3: don't normalize away a null fragment, on merge remove leading `.' and `..'."
+  :type :system
+  :post-loadable t)
+
+#+(version= 9 0)
+(sys:defpatch "uri" 1
+  "v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :type :system
   :post-loadable t)
 
@@ -694,7 +701,8 @@ URI ~s contains illegal character ~s at position ~d."
 	   (ecase (read-token :rest)
 	     (:string (setq fragment tokval)
 		      (setq state 9))
-	     (:end (setq state 9))))
+	     (:end (setq fragment "" ;; rfe11851
+			 state 9))))
 	  (9 ;; done
 	   (when port
 	     (multiple-value-bind (int length)
@@ -829,6 +837,8 @@ URI ~s contains illegal character ~s at position ~d."
 (eval-when (compile eval load)
   (when (fboundp 'render-uri) (fmakunbound 'render-uri)))
 
+(defvar *render-include-slash-on-null-path* nil) ;; rfe11850
+
 (defmethod render-uri ((uri uri) stream
 		       &aux (escape (uri-escaped uri))
 			    (*print-pretty* nil))
@@ -857,11 +867,14 @@ URI ~s contains illegal character ~s at position ~d."
 	  (when port ":")
 	  (when port
 	    (with-output-to-string (s) (excl::maybe-print-fast s port)))
-	  (when path
-	    (encode-escaped-encoding path
-				     nil
-				     ;;*reserved-path-characters*
-				     escape))
+	  (if* path
+	     then (encode-escaped-encoding path
+					   nil
+					   ;;*reserved-path-characters*
+					   escape)
+	   elseif (and *render-include-slash-on-null-path*
+		       #|no path but:|# scheme host)
+	     then "/")
 	  (when query "?")
 	  (when query (encode-escaped-encoding query nil escape))
 	  (when fragment "#")
@@ -1061,15 +1074,17 @@ URI ~s contains illegal character ~s at position ~d."
 					    then b
 					    else (car b))))))
 	  (when (null index) (return))
-	  (when (= 0 index)
-	    ;; The RFC says, in 6g, "that the implementation may handle
-	    ;; this error by retaining these components in the resolved
-	    ;; path, by removing them from the resolved path, or by
-	    ;; avoiding traversal of the reference."  The examples in C.2
-	    ;; imply that we should do the first thing (retain them), so
-	    ;; that's what we'll do.
-	    (return))
-	  (if* (= 1 index)
+	  
+	  (if* (= 0 index)
+	     then ;; rfe11852: RFC 3986, in section 5.4.2 (Abnormal
+		  ;; Examples) says parsers; must be careful in handling
+		  ;; cases where there are more ".." segments in a
+		  ;; relative-path reference than there are in the base
+		  ;; URI's path.  The examples, between the two RFC's were
+		  ;; changed to show the additional, leading ..'s to be
+		  ;; removed. So, we'll do that now.
+		  (setq npl (cdr npl))
+	   elseif (= 1 index)
 	     then (setq npl (cddr npl))
 	     else (setq tmp npl)
 		  (dotimes (x (- index 2)) (setq tmp (cdr tmp)))
