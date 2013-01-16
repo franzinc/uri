@@ -32,7 +32,7 @@ v3: don't normalize away a null fragment, on merge remove leading `.' and `..'."
 ;; For general URI information see RFC2396.
 ;;
 ;; copyright (c) 1999-2005 Franz Inc, Berkeley, CA  - All rights reserved.
-;; copyright (c) 2002-2012 Franz Inc, Oakland, CA - All rights reserved.
+;; copyright (c) 2002-2013 Franz Inc, Oakland, CA - All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
