@@ -325,14 +325,18 @@ v3: don't normalize away a null fragment, on merge remove leading `.' and `..'."
       (parse-uri-string thing)
     (when scheme
       (setq scheme
-	(intern (funcall
-		 (case *current-case-mode*
-		   ((:case-insensitive-upper :case-sensitive-upper)
-		    #'string-upcase)
-		   ((:case-insensitive-lower :case-sensitive-lower)
-		    #'string-downcase))
-		 (decode-escaped-encoding scheme escape))
-		(find-package :keyword))))
+	(cond ((string-equal scheme "http") :http)
+	      ((string-equal scheme "https") :https)
+	      ((string-equal scheme "ftp") :ftp)
+	      (t
+	       (intern (funcall
+			(case *current-case-mode*
+			  ((:case-insensitive-upper :case-sensitive-upper)
+			   #'string-upcase)
+			  ((:case-insensitive-lower :case-sensitive-lower)
+			   #'string-downcase))
+			(decode-escaped-encoding scheme escape))
+		       (load-time-value (find-package :keyword)))))))
     
     (when (and scheme (eq :urn scheme))
       (return-from parse-uri
