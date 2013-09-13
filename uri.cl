@@ -14,16 +14,18 @@ v10: handle userinfo in authority, fix escaping issues."
   :post-loadable t)
 
 #+(version= 8 2)
-(sys:defpatch "uri" 3
+(sys:defpatch "uri" 4
   "v1: make canonicalization of / optional for schemes;
 v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
-v3: don't normalize away a null fragment, on merge remove leading `.' and `..'."
+v3: don't normalize away a null fragment, on merge remove leading `.' and `..';
+v4: speed up parse-uri."
   :type :system
   :post-loadable t)
 
 #+(version= 9 0)
-(sys:defpatch "uri" 1
-  "v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
+(sys:defpatch "uri" 2
+  "v1: don't normalize away a null fragment, on merge remove leading `.' and `..';
+v2: speed up parse-uri."
   :type :system
   :post-loadable t)
 
