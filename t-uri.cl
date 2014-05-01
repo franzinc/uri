@@ -195,6 +195,15 @@
     (util.test:test u1 u2 :test (lambda (a b)
 				  (not (uri= a b)))))
 
+  ;; rfe13043
+  (dotimes (i 127)
+    (when (= 1 (sbit net.uri::*reserved-characters* i))
+      (let* ((ch (code-char i))
+	     (u1 (net.uri:parse-uri
+		  (concatenate 'simple-string "http://www.example.com/path/with/"
+			       (net.aserve:uriencode-string (format nil "special~cchar" ch))))))
+	(util.test:test-no-error (net.uri:uri-parsed-path u1)))))
+
   (unintern-uri t)
 
   #.

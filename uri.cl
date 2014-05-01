@@ -14,18 +14,20 @@ v10: handle userinfo in authority, fix escaping issues."
   :post-loadable t)
 
 #+(version= 8 2)
-(sys:defpatch "uri" 4
+(sys:defpatch "uri" 5
   "v1: make canonicalization of / optional for schemes;
 v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
 v3: don't normalize away a null fragment, on merge remove leading `.' and `..';
-v4: speed up parse-uri."
+v4: speed up parse-uri.
+v5: Fix handling of #\% chars in path component of uri."
   :type :system
   :post-loadable t)
 
 #+(version= 9 0)
-(sys:defpatch "uri" 2
+(sys:defpatch "uri" 3
   "v1: don't normalize away a null fragment, on merge remove leading `.' and `..';
-v2: speed up parse-uri."
+v2: speed up parse-uri.
+v3: Fix handling of #\% chars in path component of uri."
   :type :system
   :post-loadable t)
 
@@ -265,7 +267,7 @@ v2: speed up parse-uri."
 (defparameter *reserved-path-characters*
     (reserved-char-vector
      (append *excluded-characters*
-	     '(#\;
+	     '(#\; #\%
 ;;;;The rfc says this should be here, but it doesn't make sense.
 	       ;; #\=
 	       #\/ #\?))))
@@ -821,7 +823,7 @@ URI ~s contains illegal character ~s at position ~d."
 	    (when (not (and (setq chc (digit-char-p ch 16))
 			    (setq chc2 (digit-char-p ch2 16))))
 	      (excl::.parse-error
-	       "Non-hexidecimal digits after %: %c%c." ch ch2))
+	       "Non-hexidecimal digits after %: %~c%~c." ch ch2))
 	    (let ((ci (+ (* 16 chc) chc2)))
 	      (if* (or (null reserved-chars)
 		       (and (<= ci 127)	; bug11527
@@ -857,7 +859,7 @@ URI ~s contains illegal character ~s at position ~d."
 	    (host (uri-host uri))
 	    (userinfo (uri-userinfo uri))
 	    (port (uri-port uri))
-	    (path (uri-path uri))
+	    (parsed-path (uri-parsed-path uri))
 	    (query (uri-query uri))
 	    (fragment (uri-fragment uri)))
 	(concatenate 'simple-string
@@ -876,11 +878,8 @@ URI ~s contains illegal character ~s at position ~d."
 	  (when port ":")
 	  (when port
 	    (with-output-to-string (s) (excl::maybe-print-fast s port)))
-	  (if* path
-	     then (encode-escaped-encoding path
-					   nil
-					   ;;*reserved-path-characters*
-					   escape)
+	  (if* parsed-path
+	     then (render-parsed-path parsed-path escape)
 	   elseif (and *render-include-slash-on-null-path*
 		       #|no path but:|# scheme host)
 	     then "/")
