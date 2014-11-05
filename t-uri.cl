@@ -15,7 +15,8 @@
 
 (eval-when (compile load eval)
   (require :test)
-  (require :uri))
+  (require :uri)
+  (require :aserve))
 
 (in-package :test)
 
