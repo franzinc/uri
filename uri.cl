@@ -24,20 +24,22 @@
   :post-loadable t)
 
 #+(version= 9 0)
-(sys:defpatch "uri" 3
-  "v1: don't normalize away a null fragment, on merge remove leading `.' and `..';
-v2: speed up parse-uri.
-v3: Fix handling of #\% chars in path component of uri."
+(sys:defpatch "uri" 4
+  "v4: handle no-authority URIs with `hdfs' scheme the same as `file';
+v3: Fix handling of #\% chars in path component of uri;
+v2: speed up parse-uri;
+v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :type :system
   :post-loadable t)
 
 #+(version= 8 2)
-(sys:defpatch "uri" 5
-  "v1: make canonicalization of / optional for schemes;
-v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
+(sys:defpatch "uri" 6
+  "v6: handle no-authority URIs with `hdfs' scheme the same as `file';
+v5: Fix handling of #\% chars in path component of uri;
+v4: speed up parse-uri;
 v3: don't normalize away a null fragment, on merge remove leading `.' and `..';
-v4: speed up parse-uri.
-v5: Fix handling of #\% chars in path component of uri."
+v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
+v1: make canonicalization of / optional for schemes."
   :type :system
   :post-loadable t)
 
