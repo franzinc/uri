@@ -1,36 +1,3 @@
-#+(version= 8 1)
-(sys:defpatch "uri" 10
-  "v1: don't canonicalize away path of / if there are a query or fragment;
-v2: handle merging of urns;
-v3: handle further case of merging urns and uris;
-v4: fix merge-uris escaping; render-uri now a generic function;
-v5: add escape keyword to parse-uri;
-v6: Fix file://c:/ parsing on Windows;
-v7: Fixes to merge-uris of file://c:/.../ pathnames on Windows;
-v8: pathname-to-uri/uri-to-pathname handle chars needing escaping;
-v9: add newline and linefeed to list of escaped chars;
-v10: handle userinfo in authority, fix escaping issues."
-  :type :system
-  :post-loadable t)
-
-#+(version= 8 2)
-(sys:defpatch "uri" 5
-  "v1: make canonicalization of / optional for schemes;
-v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
-v3: don't normalize away a null fragment, on merge remove leading `.' and `..';
-v4: speed up parse-uri.
-v5: Fix handling of #\% chars in path component of uri."
-  :type :system
-  :post-loadable t)
-
-#+(version= 9 0)
-(sys:defpatch "uri" 3
-  "v1: don't normalize away a null fragment, on merge remove leading `.' and `..';
-v2: speed up parse-uri.
-v3: Fix handling of #\% chars in path component of uri."
-  :type :system
-  :post-loadable t)
-
 ;; -*- mode: common-lisp; package: net.uri -*-
 ;; Support for URIs in Allegro.
 ;; For general URI information see RFC2396.
@@ -49,6 +16,30 @@ v3: Fix handling of #\% chars in path component of uri."
 ;; but without any warranty; without even the implied warranty of
 ;; merchantability or fitness for a particular purpose.  See the GNU
 ;; Lesser General Public License for more details.
+
+#+(version= 10 0)
+(sys:defpatch "uri" 1
+  "v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
+  :type :system
+  :post-loadable t)
+
+#+(version= 9 0)
+(sys:defpatch "uri" 3
+  "v1: don't normalize away a null fragment, on merge remove leading `.' and `..';
+v2: speed up parse-uri.
+v3: Fix handling of #\% chars in path component of uri."
+  :type :system
+  :post-loadable t)
+
+#+(version= 8 2)
+(sys:defpatch "uri" 5
+  "v1: make canonicalization of / optional for schemes;
+v2: handle opaque part parsing (e.g., tag:franz.com,2005:rdf/something/);
+v3: don't normalize away a null fragment, on merge remove leading `.' and `..';
+v4: speed up parse-uri.
+v5: Fix handling of #\% chars in path component of uri."
+  :type :system
+  :post-loadable t)
 
 (defpackage :net.uri
   (:use :common-lisp :excl)
@@ -581,12 +572,10 @@ URI ~s contains illegal character ~s at position ~d."
 	     (:question (failure))
 	     (:hash (failure))
 	     (:slash
-	      (if* (and (equalp "file" scheme)
-			(null host))
-		 then ;; file:///...
-		      (push "/" path-components)
-		      (setq state 6)
-		 else (failure)))
+	      ;; A scheme without an authority is allowed.
+	      ;; Something like file:/// or hdfs:///foo
+	      (push "/" path-components)
+	      (setq state 6))
 	     (:string
 	      ;; Need to look for c:/...
 	      #+mswindows
@@ -869,7 +858,10 @@ URI ~s contains illegal character ~s at position ~d."
 	      (symbol-name scheme))
 	     *reserved-characters* escape))
 	  (when scheme ":")
-	  (when (or host (eq :file scheme)) "//")
+	  (when (or host
+		    (eq :file scheme)
+		    (eq :hdfs scheme))
+	    "//")
 	  (when userinfo userinfo)
 	  (when userinfo "@")
 	  (when host
