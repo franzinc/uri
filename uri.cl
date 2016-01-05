@@ -18,8 +18,9 @@
 ;; Lesser General Public License for more details.
 
 #+(version= 10 0)
-(sys:defpatch "uri" 1
-  "v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
+(sys:defpatch "uri" 2
+  "v2: allow null query;
+v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :type :system
   :post-loadable t)
 
@@ -693,7 +694,8 @@ URI ~s contains illegal character ~s at position ~d."
 	     (:hash (setq state 8))
 	     (:string (setq query tokval)
 		      (setq state 14))
-	     (:end (setq state 9))))
+	     (:end (setq query "")
+		   (setq state 9))))
 	  (14 ;; query
 	   (ecase (read-token :query)
 	     (:hash (setq state 8))

@@ -340,8 +340,13 @@
 	       :test 'uri=)
 	     res)
        (push '(test
-	       (parse-uri "http://www.foo.com")
+	       (parse-uri "http://www.foo.com?")
 	       (parse-uri (parse-uri "http://www.foo.com?")) ; allow ? at end
+	       :test 'uri=)
+	     res)
+       (push '(test
+	       (parse-uri "http://www.foo.com/foo/bar?")
+	       (parse-uri (parse-uri "http://www.foo.com/foo/bar?"))
 	       :test 'uri=)
 	     res)
        (push `(test
