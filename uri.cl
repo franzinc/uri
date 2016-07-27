@@ -2,20 +2,7 @@
 ;; Support for URIs in Allegro.
 ;; For general URI information see RFC2396.
 ;;
-;; copyright (c) 1999-2005 Franz Inc, Berkeley, CA  - All rights reserved.
-;; copyright (c) 2002-2016 Franz Inc, Oakland, CA - All rights reserved.
-;;
-;; This code is free software; you can redistribute it and/or
-;; modify it under the terms of the version 2.1 of
-;; the GNU Lesser General Public License as published by 
-;; the Free Software Foundation, as clarified by the
-;; preamble found here:
-;;     http://opensource.franz.com/preamble.html
-;;
-;; This code is distributed in the hope that it will be useful,
-;; but without any warranty; without even the implied warranty of
-;; merchantability or fitness for a particular purpose.  See the GNU
-;; Lesser General Public License for more details.
+;; See the file LICENSE for the full license governing this code.
 
 #+(version= 10 0)
 (sys:defpatch "uri" 2
