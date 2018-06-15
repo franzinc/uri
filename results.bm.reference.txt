@@ -1,0 +1,108 @@
+TESTED: walter.franz.com on Wed Sep 5 15:22:47 PDT 2018
+make[1]: Entering directory `/net/walter/acl/acl10.1.64/src/uri'
+rm -f build.tmp *.fasl
+echo '(load (compile-file "bench.cl"))' >> build.tmp
+echo '(run-bms)' >> build.tmp
+echo '(exit 0)' >> build.tmp
+/fi/cl/10.1/bin/mlisp8-64 -qq -batch +s build.tmp
+Allegro CL [master]
+10.1 [64-bit Linux (x86-64)] (Aug 8, 2018 16:39)
+Copyright (C) 1985-2017, Franz Inc., Oakland, CA, USA.  All Rights Reserved.
+
+This development copy of Allegro CL is licensed to:
+   Franz Inc. Staff
+
+;; Optimization settings: safety 1, space 1, speed 1, debug 2.
+;; For a complete description of all compiler switches given the
+;; current optimization settings evaluate (explain-compiler-settings).
+;;---
+;; Current reader case mode: :case-sensitive-lower
+;;; Compiling file bench.cl
+;;; Writing fasl file bench.fasl
+;;; Fasl write complete
+; Fast loading /net/walter/acl/acl10.1.64/src/uri/bench.fasl
+
+t 
+
+;; Testing #<Function uri-perf-parse>..
+
+; cpu time (non-gc) 9.841497 sec user, 0.002999 sec system
+; cpu time (gc)     0.173980 sec user, 0.006999 sec system
+; cpu time (total)  10.015477 sec user, 0.009998 sec system
+; real time  10.030043 sec (99.95%)
+; space allocation:
+;  4,200,000 cons cells, 1,848,000,000 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+; cpu time (non-gc) 9.861504 sec user, 0.004000 sec system
+; cpu time (gc)     0.188968 sec user, 0.004999 sec system
+; cpu time (total)  10.050472 sec user, 0.008999 sec system
+; real time  10.063132 sec (99.96%)
+; space allocation:
+;  4,200,000 cons cells, 1,848,000,000 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+; cpu time (non-gc) 9.824509 sec user, 0.002000 sec system
+; cpu time (gc)     0.190969 sec user, 0.001999 sec system
+; cpu time (total)  10.015478 sec user, 0.003999 sec system
+; real time  10.021310 sec (99.98%)
+; space allocation:
+;  4,200,000 cons cells, 1,848,000,000 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+
+;; Testing #<Function uri-perf-render-uri>..
+
+; cpu time (non-gc) 9.721521 sec user, 0.004999 sec system
+; cpu time (gc)     0.178974 sec user, 0.004000 sec system
+; cpu time (total)  9.900495 sec user, 0.008999 sec system
+; real time  9.914564 sec (99.95%)
+; space allocation:
+;  38,401,919 cons cells, 1,237,768,848 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+; cpu time (non-gc) 9.727525 sec user, 0.003999 sec system
+; cpu time (gc)     0.168971 sec user, 0.005999 sec system
+; cpu time (total)  9.896496 sec user, 0.009998 sec system
+; real time  9.910687 sec (99.96%)
+; space allocation:
+;  38,401,862 cons cells, 1,237,767,392 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+; cpu time (non-gc) 9.723518 sec user, 0.005999 sec system
+; cpu time (gc)     0.177976 sec user, 0.011998 sec system
+; cpu time (total)  9.901494 sec user, 0.017997 sec system
+; real time  9.924115 sec (99.95%)
+; space allocation:
+;  38,401,862 cons cells, 1,237,767,392 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+
+;; Testing #<Function uri-perf-format>..
+
+; cpu time (non-gc) 12.583086 sec user, 0.002000 sec system
+; cpu time (gc)     0.071990 sec user, 0.003999 sec system
+; cpu time (total)  12.655076 sec user, 0.005999 sec system
+; real time  12.665757 sec (99.96%)
+; space allocation:
+;  15,402,428 cons cells, 541,424,624 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+; cpu time (non-gc) 12.566092 sec user, 0.003000 sec system
+; cpu time (gc)     0.081985 sec user, 0.001000 sec system
+; cpu time (total)  12.648077 sec user, 0.004000 sec system
+; real time  12.656530 sec (99.96%)
+; space allocation:
+;  15,402,373 cons cells, 541,409,456 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+; cpu time (non-gc) 12.575087 sec user, 0.002999 sec system
+; cpu time (gc)     0.068991 sec user, 0.001000 sec system
+; cpu time (total)  12.644078 sec user, 0.003999 sec system
+; real time  12.652449 sec (99.97%)
+; space allocation:
+;  15,402,376 cons cells, 541,414,272 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+
+nil ; Exiting
+make[1]: Leaving directory `/net/walter/acl/acl10.1.64/src/uri'

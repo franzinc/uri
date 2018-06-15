@@ -1,0 +1,120 @@
+Collected ABNF for URIs (3986) and URNs (8141)
+
+The rules been been numbered, so they can be referenced in the parser
+source code.  Changes from the official rules have been made, noted
+below.
+
+ABNF syntax:
+ - n*m(rule) repeats `rule' from n to m times, where
+   n defaults to 0, m defaults to infinity
+ - [rule] is the same as *1(rule) or 0*1(rule)
+ - 2(rule) is the same as 2*2(rule)
+ - *(rule) is zero or more of `rule'
+ - *2(rule) is 0, 1 or 2 of `rule'
+ - alternatives separated by /
+ - literals in double quotes ("+")
+ - ; starts a comment (to the end of the line)
+
+Changes to grammar:
+
+* The rule for fragments (31) is missing "#" in the alternation
+  list.  For the same reason ? is allowed in query values, # should
+  be allowed in fragment values.  It is no longer needed to
+  distinguish the start of the fragment, just like in the query
+  case.
+
+  NOTE: this was rejected by the IETF:
+     	   https://www.rfc-editor.org/errata/eid3330
+	However, it is in wide use, so we allow it in non-strict
+        mode.
+
+* These rules have been eliminated from the grammar:
+    path
+    reserved
+    gen-delims
+      => unreferenced or only reference each other
+
+    segment
+    segment-nz
+      => *pchar and 1*pchar wwere used in other parts of the grammar,
+      	 so use them instead
+
+* Rule 12 updated from RFC 6874 grammar.
+
+* Rule 25 (path-empty) RHS was changed in errata from
+      0<pchar>
+  to
+      ""
+  but that seems broken.
+
+* Rule 54 updated from RFC 8141: added "." because examples in the RFC
+  included it.
+
+*******************************************************************************
+01   URI           = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
+02   URI-reference = URI / relative-ref
+03   absolute-URI  = scheme ":" hier-part [ "?" query ]
+04   hier-part     = "//" authority path-abempty
+		   / path-absolute
+		   / path-rootless
+		   / path-empty
+05   relative-ref  = relative-part [ "?" query ] [ "#" fragment ]
+06   relative-part = "//" authority path-abempty
+		   / path-absolute
+		   / path-noscheme
+		   / path-empty
+07   scheme        = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+08   authority     = [ userinfo "@" ] host [ ":" port ]
+09   userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
+10   host          = IP-literal / IPv4address / reg-name
+11   port          = *DIGIT
+12a  IP-literal    = "[" ( IPv6addrz / IPvFuture  ) "]"
+12b  IPv6addrz     = IPv6address [ "%25" ZoneID ]
+12c  ZoneID        = 1*( unreserved / pct-encoded )
+13   IPvFuture     = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
+14   IPv6address   =                            6( h16 ":" ) ls32
+		   /                       "::" 5( h16 ":" ) ls32
+		   / [               h16 ] "::" 4( h16 ":" ) ls32
+		   / [ *1( h16 ":" ) h16 ] "::" 3( h16 ":" ) ls32
+		   / [ *2( h16 ":" ) h16 ] "::" 2( h16 ":" ) ls32
+		   / [ *3( h16 ":" ) h16 ] "::"    h16 ":"   ls32
+		   / [ *4( h16 ":" ) h16 ] "::"              ls32
+		   / [ *5( h16 ":" ) h16 ] "::"              h16
+		   / [ *6( h16 ":" ) h16 ] "::"
+15   h16           = 1*4HEXDIG
+16   ls32          = ( h16 ":" h16 ) / IPv4address
+17   IPv4address   = dec-octet "." dec-octet "." dec-octet "." dec-octet
+18   dec-octet     = DIGIT                 ; 0-9
+		   / %x31-39 DIGIT         ; 10-99
+		   / "1" 2DIGIT            ; 100-199
+		   / "2" %x30-34 DIGIT     ; 200-249
+		   / "25" %x30-35          ; 250-255
+19   reg-name      = *( unreserved / pct-encoded / sub-delims )
+21   path-abempty  = *( "/" *pchar )
+22   path-absolute = "/" [ 1*pchar *( "/" *pchar ) ]
+23   path-noscheme = segment-nz-nc *( "/" *pchar )
+24   path-rootless = 1*pchar *( "/" *pchar )
+25   path-empty    = 0<pchar>
+28   segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" )
+                   ; non-zero-length segment without any colon ":"
+29   pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+30   query         = *( pchar / "/" / "?" )
+31   fragment      = *( pchar / "/" / "?" / "#" )
+32   pct-encoded   = "%" HEXDIG HEXDIG
+33   unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+36   sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+                   / "*" / "+" / "," / ";" / "="
+
+*******************************************************************************
+50   namestring    = assigned-name
+                     [ rq-components ]
+                     [ "#" f-component ]
+51   assigned-name = "urn" ":" NID ":" NSS
+52   NID           = (alphanum) 0*30(ldh) (alphanum)
+53   ldh           = alphanum / "-"
+54a  NSS           = pchar *(pchar / "/" )
+55   rq-components = [ "?+" r-component ]
+                     [ "?=" q-component ]
+56   r-component   = pchar *( pchar / "/" / "?" )
+57   q-component   = pchar *( pchar / "/" / "?" )
+58   f-component   = fragment

@@ -1,0 +1,1591 @@
+TESTED: walter.franz.com on Wed Sep 5 15:22:47 PDT 2018
+make[1]: Entering directory `/net/walter/acl/acl10.1.64/src/uri'
+rm -f build.tmp *.fasl
+echo '(load (compile-file "bench.cl"))' >> build.tmp
+echo '(profile)' >> build.tmp
+echo '(exit 0)' >> build.tmp
+/fi/cl/10.1/bin/mlisp8-64 -qq -batch +s build.tmp
+Allegro CL [master]
+10.1 [64-bit Linux (x86-64)] (Aug 8, 2018 16:39)
+Copyright (C) 1985-2017, Franz Inc., Oakland, CA, USA.  All Rights Reserved.
+
+This development copy of Allegro CL is licensed to:
+   Franz Inc. Staff
+
+;; Optimization settings: safety 1, space 1, speed 1, debug 2.
+;; For a complete description of all compiler switches given the
+;; current optimization settings evaluate (explain-compiler-settings).
+;;---
+;; Current reader case mode: :case-sensitive-lower
+;;; Compiling file bench.cl
+;;; Writing fasl file bench.fasl
+;;; Fasl write complete
+; Fast loading /net/walter/acl/acl10.1.64/src/uri/bench.fasl
+
+t 
+
+;;;;;;; :space #<Function profile1>
+; cpu time (non-gc) 11.613232 sec user, 0.272958 sec system
+; cpu time (gc)     0.178975 sec user, 0.005000 sec system
+; cpu time (total)  11.792207 sec user, 0.277958 sec system
+; real time  12.114168 sec (99.64%)
+; space allocation:
+;  4,200,000 cons cells, 1,848,000,000 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 45), minor: 48 (gc: 45)
+Sampling stopped after 232281 samples taken for the space profiler.
+
+Sample represents 1858248.0 Kbytes of space allocated.
+
+Mem.s below 1.0% will be suppressed.
+
+ %     %     self   total         self   total  Function                                  
+Mem.  Cum.  Kbyte   Kbyte calls by/call by/call   name                                    
+42.6  42.6 792048  792048                       ... subseq
+18.0  60.7 335120  335120                       ... (:internal
+                                                     (:anonymous-lambda
+                                                      0)
+                                                     0)
+12.7  73.4 236056  236056                       ... excl::vector-copy-seq*
+11.1  84.4 205592  205592                       ... (:internal
+                                                     (:anonymous-lambda
+                                                      1)
+                                                     0)
+ 7.0  91.4 129456  129456                       ... excl::concat-to-simple*
+ 3.3  94.7  60920 1043344                       ... net.uri::parse-uri-string
+ 3.3  97.9  60920   60920                       ... excl::concat-to-simple-string
+ 2.1 100.0  38104   38104                       ... string-downcase
+Space profile of sampled pc values by function, children, and parents.
+
+Total mem.s below 1.0% will be suppressed.
+Parent and child mem.s less 2.0% of the node will be suppressed.
+Sampling stopped after 232281 samples taken for the space profiler.
+
+Sample represents 1858248.0 Kbytes of space allocated.
+
+  %     %                       Parent
+ self total   total local  Function
+ Mem.  Mem.   Kbyte   %         Child
+
+  0.0 100.0 1858248   0.0   ... "start"
+            1858248 100.0        ... "start_reborn_lisp"
+-----------------------------------------------------
+            1858248 100.0        ... "start"
+  0.0 100.0 1858248   0.0   "start_reborn_lisp"
+            1858248 100.0        "first_lisp_thread"
+-----------------------------------------------------
+            1858248 100.0        "start_reborn_lisp"
+  0.0 100.0 1858248   0.0   "first_lisp_thread"
+            1858248 100.0        excl::lisp-thread-start
+-----------------------------------------------------
+            1858248 100.0        "first_lisp_thread"
+  0.0 100.0 1858248   0.0   excl::lisp-thread-start
+            1858248 100.0        excl::run-initial-thread
+-----------------------------------------------------
+            1858248 100.0        excl::lisp-thread-start
+  0.0 100.0 1858248   0.0   ... excl::run-initial-thread
+            1858248 100.0        ... excl::thread-reset-catcher
+-----------------------------------------------------
+            1858248 100.0        ... excl::run-initial-thread
+  0.0 100.0 1858248   0.0   excl::thread-reset-catcher
+            1858248 100.0        excl::thread-bind-and-call
+-----------------------------------------------------
+            1858248 100.0        excl::thread-reset-catcher
+  0.0 100.0 1858248   0.0   excl::thread-bind-and-call
+            1858248 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+            1858248 100.0r       excl::thread-bind-and-call
+             129456   7.0r       net.uri::parse-uri-string
+  0.0 100.0 1858248   0.0   ... #<Runtime Function Object (:runsys
+                                                           "lisp_apply")>
+            1858248 100.0r       ... excl::process-script
+             129456   7.0r       concatenate
+-----------------------------------------------------
+            1858248 100.0        ... #<Runtime Function Object (:runsys
+                                                                "lisp_apply")>
+  0.0 100.0 1858248   0.0   excl::process-script
+            1858248 100.0        eval
+-----------------------------------------------------
+            1858248 100.0        excl::process-script
+  0.0 100.0 1858248   0.0   eval
+            1858248 100.0        profile
+-----------------------------------------------------
+            1858248 100.0        eval
+  0.0 100.0 1858248   0.0   profile
+            1858248 100.0        prof::prof-a-funcall
+-----------------------------------------------------
+            1858248 100.0        profile
+  0.0 100.0 1858248   0.0   prof::prof-a-funcall
+            1858248 100.0        (:internal profile 0)
+-----------------------------------------------------
+            1858248 100.0        prof::prof-a-funcall
+  0.0 100.0 1858248   0.0   (:internal profile 0)
+            1858248 100.0        profile1
+-----------------------------------------------------
+            1858248 100.0        (:internal profile 0)
+  0.0 100.0 1858248   0.0   profile1
+            1858248 100.0        do-bm-1
+-----------------------------------------------------
+            1858248 100.0        profile1
+  0.0 100.0 1858248   0.0   do-bm-1
+            1858248 100.0        excl::time-a-funcall
+-----------------------------------------------------
+            1858248 100.0        do-bm-1
+  0.0 100.0 1858248   0.0   ... excl::time-a-funcall
+            1858216 100.0        ... (:internal do-bm-1 2)
+-----------------------------------------------------
+            1858216 100.0        ... excl::time-a-funcall
+  0.0 100.0 1858216   0.0   (:internal do-bm-1 2)
+            1858216 100.0        uri-perf-parse
+-----------------------------------------------------
+            1858216 100.0        (:internal do-bm-1 2)
+  0.0 100.0 1858216   0.0   uri-perf-parse
+            1652624  88.9        parse-uri
+             205592  11.1        (:internal (:anonymous-lambda 1) 0)
+-----------------------------------------------------
+            1652624 100.0        uri-perf-parse
+  0.0  88.9 1652624   0.0   parse-uri
+            1043344  63.1        net.uri::parse-uri-string
+             335120  20.3        (:internal (:anonymous-lambda 0) 0)
+             236056  14.3        net.uri::decode-escaped-encoding
+              38104   2.3        string-downcase
+-----------------------------------------------------
+            1043344 100.0        parse-uri
+  0.0  56.1 1043344   0.0   net.uri::parse-uri-string
+             792048  75.9        (labels
+                                  net.uri::parse-uri-string
+                                  net.uri::read-token)
+             129456  12.4        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+              60920   5.8        "lisp_cons"
+              60920   5.8        excl::concat-to-simple-string
+-----------------------------------------------------
+             792048  77.6        subseq
+             129456  12.7        excl::concat-to-simple*
+              60920   6.0        excl::concat-to-simple-string
+              38104   3.7        string-downcase
+ 54.9  54.9 1020536 100.0   "new_simple_string"
+-----------------------------------------------------
+             792048 100.0        net.uri::parse-uri-string
+  0.0  42.6  792048   0.0   (labels net.uri::parse-uri-string
+                              net.uri::read-token)
+             792048 100.0        subseq
+-----------------------------------------------------
+             792048 100.0        (labels
+                                  net.uri::parse-uri-string
+                                  net.uri::read-token)
+  0.0  42.6  792048   0.0   subseq
+             792048 100.0        "new_simple_string"
+-----------------------------------------------------
+             449216  57.8        "vector"
+             236056  30.4        "make_svector"
+              61000   7.9        ... (:internal (:anonymous-lambda 0) 0)
+              30496   3.9        ... (:internal (:anonymous-lambda 1) 0)
+ 41.8  41.8  776776 100.0   "new_other"
+-----------------------------------------------------
+             274120  61.0        (:internal (:anonymous-lambda 0) 0)
+             175096  39.0        (:internal (:anonymous-lambda 1) 0)
+  0.0  24.2  449216   0.0   "vector"
+             449216 100.0        "new_other"
+-----------------------------------------------------
+             335120 100.0        parse-uri
+  0.0  18.0  335120   0.0   ... (:internal (:anonymous-lambda 0) 0)
+             274120  81.8        "vector"
+              61000  18.2        ... "new_other"
+-----------------------------------------------------
+             236056 100.0        parse-uri
+  0.0  12.7  236056   0.0   net.uri::decode-escaped-encoding
+             236056 100.0        excl::vector-copy-seq*
+-----------------------------------------------------
+             236056 100.0        net.uri::decode-escaped-encoding
+  0.0  12.7  236056   0.0   excl::vector-copy-seq*
+             236056 100.0        "make_svector"
+-----------------------------------------------------
+             236056 100.0        excl::vector-copy-seq*
+  0.0  12.7  236056   0.0   "make_svector"
+             236056 100.0        "new_other"
+-----------------------------------------------------
+             205592 100.0        uri-perf-parse
+  0.0  11.1  205592   0.0   ... (:internal (:anonymous-lambda 1) 0)
+             175096  85.2        "vector"
+              30496  14.8        ... "new_other"
+-----------------------------------------------------
+             129456 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+  0.0   7.0  129456   0.0   concatenate
+             129456 100.0        excl::concat-to-simple*
+-----------------------------------------------------
+             129456 100.0        concatenate
+  0.0   7.0  129456   0.0   excl::concat-to-simple*
+             129456 100.0        "new_simple_string"
+-----------------------------------------------------
+              60920 100.0        net.uri::parse-uri-string
+  3.3   3.3   60920 100.0   "lisp_cons"
+-----------------------------------------------------
+              60920 100.0        net.uri::parse-uri-string
+  0.0   3.3   60920   0.0   excl::concat-to-simple-string
+              60920 100.0        "new_simple_string"
+-----------------------------------------------------
+              38104 100.0        parse-uri
+  0.0   2.1   38104   0.0   string-downcase
+              38104 100.0        "new_simple_string"
+-----------------------------------------------------
+
+
+;;;;;;; :time #<Function profile1>
+; cpu time (non-gc) 10.081465 sec user, 0.002000 sec system
+; cpu time (gc)     0.057993 sec user, 0.001000 sec system
+; cpu time (total)  10.139458 sec user, 0.003000 sec system
+; real time  10.146660 sec (99.96%)
+; space allocation:
+;  4,200,000 cons cells, 1,848,000,000 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 5), minor: 7 (gc: 5)
+Sampling stopped after 1008 samples taken for the time profiler.
+
+Sample represents 10.1 seconds of user+system CPU time.
+
+Times below 1.0% will be suppressed.
+
+ %    %   self total         self   total  Function                                  
+Time Cum. secs  secs calls ms/call ms/call   name                                    
+31.9 31.9  3.2   4.2                       ... (labels
+                                                net.uri::parse-uri-string
+                                                net.uri::read-token)
+ 9.0 41.0  0.9   6.6                       ... net.uri::parse-uri-string
+ 8.9 49.9  0.9   0.9                       ... subseq
+ 5.8 55.7  0.6   1.2                       ... net.uri::decode-escaped-encoding
+ 5.3 60.9  0.5   0.6                       ... net.uri::escape-p
+ 4.2 65.1  0.4   9.8                       ... parse-uri
+ 2.1 67.2  0.2   0.4                       ... excl::vector-copy-seq*
+ 2.0 69.1  0.2   0.3                       ... parse-integer
+ 2.0 71.1  0.2   0.3                       ... excl::concat-to-simple*
+ 1.8 72.9  0.2   0.2                       ... excl::concat-to-simple-string
+ 1.8 74.7  0.2   0.2                       excl::simple-string-equal
+ 1.4 76.1  0.1   0.2                       ... (:internal
+                                                (:anonymous-lambda 0)
+                                                0)
+ 1.4 77.5  0.1   0.1                       length
+ 1.1 78.6  0.1   0.2                       ... excl::deftype-expand
+ 1.1 79.7  0.1   0.1                       excl::gethash-string
+Time profile of sampled pc values by function, children, and parents.
+
+Total times below 1.0% will be suppressed.
+Parent and child times less 2.0% of the node will be suppressed.
+Sampling stopped after 1008 samples taken for the time profiler.
+
+Sample represents 10.1 seconds of user+system CPU time.
+
+  %     %                       Parent
+ self total   total local  Function
+ Time  Time    secs   %         Child
+
+  0.0 100.0    10.1   0.0   ... "start"
+               10.0  99.5        ... "start_reborn_lisp"
+-----------------------------------------------------
+               10.0 100.0        ... "start"
+  0.0  99.5    10.0   0.0   "start_reborn_lisp"
+               10.0 100.0        "first_lisp_thread"
+-----------------------------------------------------
+               10.0 100.0        "start_reborn_lisp"
+  0.0  99.5    10.0   0.0   "first_lisp_thread"
+               10.0 100.0        excl::lisp-thread-start
+-----------------------------------------------------
+               10.0 100.0        "first_lisp_thread"
+  0.0  99.5    10.0   0.0   excl::lisp-thread-start
+               10.0 100.0        excl::run-initial-thread
+-----------------------------------------------------
+               10.0 100.0        excl::lisp-thread-start
+  0.0  99.5    10.0   0.0   ... excl::run-initial-thread
+               10.0 100.0        ... excl::thread-reset-catcher
+-----------------------------------------------------
+               10.0 100.0        ... excl::run-initial-thread
+  0.0  99.5    10.0   0.0   excl::thread-reset-catcher
+               10.0 100.0        excl::thread-bind-and-call
+-----------------------------------------------------
+               10.0 100.0        excl::thread-reset-catcher
+  0.0  99.5    10.0   0.0   excl::thread-bind-and-call
+               10.0 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+               10.0 100.0r       excl::thread-bind-and-call
+                0.6   6.1r       net.uri::parse-uri-string
+  0.6  99.5    10.0   0.6   ... #<Runtime Function Object (:runsys
+                                                           "lisp_apply")>
+               10.0  99.4r       ... excl::process-script
+                0.6   5.5r       concatenate
+-----------------------------------------------------
+               10.0 100.0        ... #<Runtime Function Object (:runsys
+                                                                "lisp_apply")>
+  0.0  99.5    10.0   0.0   excl::process-script
+               10.0 100.0        eval
+-----------------------------------------------------
+               10.0 100.0        excl::process-script
+  0.0  99.5    10.0   0.0   eval
+               10.0 100.0        profile
+-----------------------------------------------------
+               10.0 100.0        eval
+  0.0  99.5    10.0   0.0   profile
+               10.0 100.0        prof::prof-a-funcall
+-----------------------------------------------------
+               10.0 100.0        profile
+  0.0  99.5    10.0   0.0   prof::prof-a-funcall
+               10.0 100.0        (:internal profile 1)
+-----------------------------------------------------
+               10.0 100.0        prof::prof-a-funcall
+  0.0  99.5    10.0   0.0   (:internal profile 1)
+               10.0 100.0        profile1
+-----------------------------------------------------
+               10.0 100.0        (:internal profile 1)
+  0.0  99.5    10.0   0.0   profile1
+               10.0 100.0        do-bm-1
+-----------------------------------------------------
+               10.0 100.0        profile1
+  0.0  99.5    10.0   0.0   do-bm-1
+               10.0 100.0        excl::time-a-funcall
+-----------------------------------------------------
+               10.0 100.0        do-bm-1
+  0.0  99.5    10.0   0.0   ... excl::time-a-funcall
+               10.0 100.0        ... (:internal do-bm-1 2)
+-----------------------------------------------------
+               10.0 100.0        ... excl::time-a-funcall
+  0.3  99.5    10.0   0.3   (:internal do-bm-1 2)
+               10.0  99.7        uri-perf-parse
+-----------------------------------------------------
+               10.0 100.0        (:internal do-bm-1 2)
+  0.7  99.2    10.0   0.7   ... uri-perf-parse
+                9.8  98.4        parse-uri
+-----------------------------------------------------
+                9.8 100.0        uri-perf-parse
+  4.2  97.6     9.8   4.3   ... parse-uri
+                6.6  66.8        net.uri::parse-uri-string
+                1.2  11.9        net.uri::decode-escaped-encoding
+                0.6   5.6        net.uri::escape-p
+                0.2   2.4        excl::intern*
+                0.2   2.0        string-downcase
+-----------------------------------------------------
+                6.6 100.0        parse-uri
+  9.0  65.2     6.6  13.9   ... net.uri::parse-uri-string
+                4.2  64.2        (labels
+                                  net.uri::parse-uri-string
+                                  net.uri::read-token)
+                0.6   9.3        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+                0.3   5.2        ...
+                0.3   5.2        parse-integer
+                0.2   3.2        excl::concat-to-simple-string
+-----------------------------------------------------
+                4.2 100.0        net.uri::parse-uri-string
+ 31.9  41.9     4.2  76.3   ... (labels
+                                 net.uri::parse-uri-string
+                                 net.uri::read-token)
+                0.9  22.3        subseq
+-----------------------------------------------------
+                1.2 100.0        parse-uri
+  5.8  11.6     1.2  49.6   ... net.uri::decode-escaped-encoding
+                0.4  35.9        excl::vector-copy-seq*
+                0.2  13.7        ...
+                0.1   6.0        digit-char-p
+                0.1   4.3        "shrink_svector"
+                0.0   3.4        excl::*_2op
+-----------------------------------------------------
+                0.9 100.0        (labels
+                                  net.uri::parse-uri-string
+                                  net.uri::read-token)
+  8.9   9.3     0.9  95.7   ... subseq
+                0.0   4.3        ... "new_simple_string"
+-----------------------------------------------------
+                0.6 100.0        parse-uri
+  5.3   5.5     0.6  96.4   ... net.uri::escape-p
+                0.0   3.6        length
+-----------------------------------------------------
+                0.6 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+  0.8   5.5     0.6  14.5   ... concatenate
+                0.3  49.1        excl::concat-to-simple*
+                0.2  36.4        excl::deftype-expand
+                0.1   9.1        ...
+-----------------------------------------------------
+                0.4 100.0        net.uri::decode-escaped-encoding
+  2.1   4.2     0.4  50.0   ... excl::vector-copy-seq*
+                0.1  26.2        "make_svector"
+                0.1  16.7        ...
+                0.0   9.5        ash
+                0.0   4.8        ... "shift_right"
+                0.0   4.8        "shrink_svector"
+                0.0   2.4        length
+                0.0   2.4        excl::make-sequence-of-type-like
+-----------------------------------------------------
+                0.3 100.0        net.uri::parse-uri-string
+  2.0   3.4     0.3  58.8   ... parse-integer
+                0.1  17.6        excl::*_2op
+                0.1  14.7        ...
+                0.0   8.8        char
+                0.0   5.9        digit-char-p
+                0.0   5.9        excl::get-cat-entry
+                0.0   2.9        length
+-----------------------------------------------------
+                0.3 100.0        concatenate
+  2.0   2.7     0.3  74.1   ... excl::concat-to-simple*
+                0.0  14.8        length
+                0.0  11.1        ...
+                0.0   7.4        "gsgc_sas_slots"
+                0.0   3.7        "new_simple_string"
+-----------------------------------------------------
+                0.2 100.0        parse-uri
+  1.0   2.4     0.2  41.7   excl::intern*
+                0.1  58.3        excl::find-symbol*
+-----------------------------------------------------
+                0.2 100.0        net.uri::parse-uri-string
+  1.8   2.1     0.2  85.7   ... excl::concat-to-simple-string
+                0.0  14.3        length
+                0.0   9.5        ...
+-----------------------------------------------------
+                0.2 100.0        parse-uri
+  1.0   2.0     0.2  50.0   string-downcase
+                0.1  40.0        "sigprocmask"
+                0.0  10.0        "kwdscan"
+-----------------------------------------------------
+                0.2 100.0        concatenate
+  1.1   2.0     0.2  55.0   ... excl::deftype-expand
+                0.1  45.0        excl::deftype-expand-1
+                0.0  10.0        ...
+-----------------------------------------------------
+                0.2 100.0        parse-uri
+  1.4   1.8     0.2  77.8   ... (:internal (:anonymous-lambda 0) 0)
+                0.0  16.7        "vector"
+                0.0  11.1        ...
+                0.0   5.6        "kwdscan"
+-----------------------------------------------------
+                0.1  61.1        parse-uri
+                0.1  38.9        net.uri::parse-uri-string
+  1.8   1.8     0.2 100.0   excl::simple-string-equal
+-----------------------------------------------------
+                0.1 100.0        excl::intern*
+  0.3   1.4     0.1  21.4   ... excl::find-symbol*
+                0.1  78.6        excl::gethash-string
+                0.0   7.1        ...
+-----------------------------------------------------
+                0.0  28.6        excl::concat-to-simple*
+                0.0  21.4        net.uri::parse-uri-string
+                0.0  21.4        excl::concat-to-simple-string
+                0.0  14.3        net.uri::escape-p
+                0.0   7.1        parse-integer
+                0.0   7.1        excl::vector-copy-seq*
+  1.4   1.4     0.1 100.0   length
+-----------------------------------------------------
+                0.1 100.0        excl::find-symbol*
+  1.1   1.1     0.1 100.0   excl::gethash-string
+-----------------------------------------------------
+                0.1 100.0r       ... excl::vector-copy-seq*
+                0.0  36.4r       "make_svector"
+  0.7   1.1     0.1  63.6   ... "make_svector"
+                0.0  26.7        "make_svector"
+                0.0  26.7        ... "new_other"
+-----------------------------------------------------
+
+
+;;;;;;; :space #<Function profile2>
+; cpu time (non-gc) 11.061319 sec user, 0.193971 sec system
+; cpu time (gc)     0.076988 sec user, 0.001000 sec system
+; cpu time (total)  11.138307 sec user, 0.194971 sec system
+; real time  11.366913 sec ( 99.7%)
+; space allocation:
+;  38,400,817 cons cells, 1,232,461,808 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 9), minor: 9 (gc: 9)
+Sampling stopped after 226094 samples taken for the space profiler.
+
+Sample represents 1808752.0 Kbytes of space allocated.
+
+Mem.s below 1.0% will be suppressed.
+
+ %    %     self  total         self   total  Function                                  
+Mem. Cum.  Kbyte  Kbyte calls by/call by/call   name                                    
+33.4 33.4 604928 604928                       ... net.uri::render-parsed-path
+33.2 66.6 600544 600544                       ... excl::concat-to-simple-string
+33.0 99.7 597168 597168                       ... excl::concat-to-simple*
+Space profile of sampled pc values by function, children, and parents.
+
+Total mem.s below 1.0% will be suppressed.
+Parent and child mem.s less 2.0% of the node will be suppressed.
+Sampling stopped after 226094 samples taken for the space profiler.
+
+Sample represents 1808752.0 Kbytes of space allocated.
+
+  %     %                       Parent
+ self total   total local  Function
+ Mem.  Mem.   Kbyte   %         Child
+
+  0.0 100.0 1808752   0.0   ... "start"
+            1808752 100.0        ... "start_reborn_lisp"
+-----------------------------------------------------
+            1808752 100.0        ... "start"
+  0.0 100.0 1808752   0.0   "start_reborn_lisp"
+            1808752 100.0        "first_lisp_thread"
+-----------------------------------------------------
+            1808752 100.0        "start_reborn_lisp"
+  0.0 100.0 1808752   0.0   "first_lisp_thread"
+            1808752 100.0        excl::lisp-thread-start
+-----------------------------------------------------
+            1808752 100.0        "first_lisp_thread"
+  0.0 100.0 1808752   0.0   excl::lisp-thread-start
+            1808752 100.0        excl::run-initial-thread
+-----------------------------------------------------
+            1808752 100.0        excl::lisp-thread-start
+  0.0 100.0 1808752   0.0   ... excl::run-initial-thread
+            1808752 100.0        ... excl::thread-reset-catcher
+-----------------------------------------------------
+            1808752 100.0        ... excl::run-initial-thread
+  0.0 100.0 1808752   0.0   excl::thread-reset-catcher
+            1808752 100.0        excl::thread-bind-and-call
+-----------------------------------------------------
+            1808752 100.0        excl::thread-reset-catcher
+  0.0 100.0 1808752   0.0   excl::thread-bind-and-call
+            1808752 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+            1808752 100.0r       excl::thread-bind-and-call
+             597168  33.0r       (method render-uri (uri t))
+  0.0 100.0 1808752   0.0   ... #<Runtime Function Object (:runsys
+                                                           "lisp_apply")>
+            1808752 100.0r       ... excl::process-script
+             597168  33.0r       concatenate
+-----------------------------------------------------
+            1808752 100.0        ... #<Runtime Function Object (:runsys
+                                                                "lisp_apply")>
+  0.0 100.0 1808752   0.0   excl::process-script
+            1808752 100.0        eval
+-----------------------------------------------------
+            1808752 100.0        excl::process-script
+  0.0 100.0 1808752   0.0   eval
+            1808752 100.0        profile
+-----------------------------------------------------
+            1808752 100.0        eval
+  0.0 100.0 1808752   0.0   profile
+            1808752 100.0        prof::prof-a-funcall
+-----------------------------------------------------
+            1808752 100.0        profile
+  0.0 100.0 1808752   0.0   prof::prof-a-funcall
+            1808752 100.0        (:internal profile 2)
+-----------------------------------------------------
+            1808752 100.0        prof::prof-a-funcall
+  0.0 100.0 1808752   0.0   (:internal profile 2)
+            1808752 100.0        profile2
+-----------------------------------------------------
+            1808752 100.0        (:internal profile 2)
+  0.0 100.0 1808752   0.0   profile2
+            1808752 100.0        do-bm-1
+-----------------------------------------------------
+            1808752 100.0        profile2
+  0.0 100.0 1808752   0.0   do-bm-1
+            1808752 100.0        excl::time-a-funcall
+-----------------------------------------------------
+            1808752 100.0        do-bm-1
+  0.0 100.0 1808752   0.0   ... excl::time-a-funcall
+            1808720 100.0        ... (:internal do-bm-1 2)
+-----------------------------------------------------
+            1808720 100.0        ... excl::time-a-funcall
+  0.0 100.0 1808720   0.0   (:internal do-bm-1 2)
+            1808720 100.0        uri-perf-render-uri
+-----------------------------------------------------
+            1808720 100.0        (:internal do-bm-1 2)
+  0.0 100.0 1808720   0.0   uri-perf-render-uri
+            1807168  99.9        (method render-uri (uri t))
+-----------------------------------------------------
+            1807168 100.0        uri-perf-render-uri
+  0.0  99.9 1807168   0.0   (method render-uri (uri t))
+             604928  33.5        net.uri::render-parsed-path
+             598992  33.1        excl::concat-to-simple-string
+             597168  33.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+             600544  49.9        excl::concat-to-simple-string
+             597168  49.6        excl::concat-to-simple*
+ 66.6  66.6 1203792 100.0   "new_simple_string"
+-----------------------------------------------------
+             604928 100.0        net.uri::render-parsed-path
+ 33.4  33.4  604936 100.0   "lisp_cons"
+-----------------------------------------------------
+             604928 100.0        (method render-uri (uri t))
+  0.0  33.4  604928   0.0   net.uri::render-parsed-path
+             604928 100.0        "lisp_cons"
+-----------------------------------------------------
+             598992  99.7        (method render-uri (uri t))
+  0.0  33.2  600544   0.0   excl::concat-to-simple-string
+             600544 100.0        "new_simple_string"
+-----------------------------------------------------
+             597168 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+  0.0  33.0  597168   0.0   concatenate
+             597168 100.0        excl::concat-to-simple*
+-----------------------------------------------------
+             597168 100.0        concatenate
+  0.0  33.0  597168   0.0   excl::concat-to-simple*
+             597168 100.0        "new_simple_string"
+-----------------------------------------------------
+
+
+;;;;;;; :time #<Function profile2>
+; cpu time (non-gc) 9.983483 sec user, 0.001000 sec system
+; cpu time (gc)     0.072988 sec user, 0.001000 sec system
+; cpu time (total)  10.056471 sec user, 0.002000 sec system
+; real time  10.060382 sec (99.98%)
+; space allocation:
+;  38,400,760 cons cells, 1,232,460,160 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
+Sampling stopped after 997 samples taken for the time profiler.
+
+Sample represents 10.0 seconds of user+system CPU time (out of a total of 10.1).
+
+Times below 1.0% will be suppressed.
+
+ %    %   self total         self   total  Function                                  
+Time Cum. secs  secs calls ms/call ms/call   name                                    
+28.5 28.5  2.8   3.2                       ... excl::concat-to-simple-string
+10.2 38.7  1.0   8.7                       ... (method
+                                                render-uri
+                                                (uri t))
+ 9.8 48.5  1.0   1.2                       ... excl::concat-to-simple*
+ 5.0 53.6  0.5   0.6                       (:discriminator
+                                            (:two-class-reader nil))
+ 4.4 58.0  0.4  10.0                       ... #<Runtime Function Object (:runsys
+                                                                          "lisp_apply")>
+ 4.3 62.3  0.4   0.7                       ... net.uri::render-parsed-path
+ 4.1 66.4  0.4   0.4                       length
+ 3.3 69.7  0.3   0.6                       ... string-downcase
+ 2.0 71.7  0.2   0.2                       char-downcase
+ 1.8 73.5  0.2   0.2                       "q_wrapper_slots_std"
+ 1.7 75.2  0.2   9.9                       ... uri-perf-render-uri
+ 1.7 76.9  0.2   0.3                       excl::print-fixnum
+ 1.7 78.6  0.2   0.2                       "gc_setf_protect"
+ 1.5 80.1  0.2   0.3                       ... excl::deftype-expand-1
+ 1.5 81.6  0.2   0.2                       (:discriminator
+                                            (:caching (class t) nil))
+ 1.4 83.0  0.1   1.7                       ... concatenate
+ 1.3 84.4  0.1   0.2                       (:internal
+                                            excl::defresource-1
+                                            1)
+ 1.2 85.6  0.1   0.1                       "new_simple_string"
+ 1.1 86.7  0.1   0.8                       ... (method
+                                                render-uri
+                                                (urn t))
+ 1.0 87.7  0.1   0.1                       excl::get_2op
+Time profile of sampled pc values by function, children, and parents.
+
+Total times below 1.0% will be suppressed.
+Parent and child times less 2.0% of the node will be suppressed.
+Sampling stopped after 997 samples taken for the time profiler.
+
+Sample represents 10.0 seconds of user+system CPU time (out of a total of 10.1).
+
+  %     %                       Parent
+ self total   total local  Function
+ Time  Time    secs   %         Child
+
+  0.0 100.0    10.0   0.0   ... "start"
+               10.0  99.9        ... "start_reborn_lisp"
+-----------------------------------------------------
+               10.0 100.0        ... "start"
+  0.0  99.9    10.0   0.0   "start_reborn_lisp"
+               10.0 100.0        "first_lisp_thread"
+-----------------------------------------------------
+               10.0 100.0        "start_reborn_lisp"
+  0.0  99.9    10.0   0.0   "first_lisp_thread"
+               10.0 100.0        excl::lisp-thread-start
+-----------------------------------------------------
+               10.0 100.0        "first_lisp_thread"
+  0.0  99.9    10.0   0.0   excl::lisp-thread-start
+               10.0 100.0        excl::run-initial-thread
+-----------------------------------------------------
+               10.0 100.0        excl::lisp-thread-start
+  0.0  99.9    10.0   0.0   ... excl::run-initial-thread
+               10.0 100.0        ... excl::thread-reset-catcher
+-----------------------------------------------------
+               10.0 100.0        ... excl::run-initial-thread
+  0.0  99.9    10.0   0.0   excl::thread-reset-catcher
+               10.0 100.0        excl::thread-bind-and-call
+-----------------------------------------------------
+               10.0 100.0        excl::thread-reset-catcher
+  0.0  99.9    10.0   0.0   excl::thread-bind-and-call
+               10.0 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+               10.0 100.0r       excl::thread-bind-and-call
+                2.1  21.1r       (method render-uri (uri t))
+  4.4  99.9    10.0   4.4   ... #<Runtime Function Object (:runsys
+                                                           "lisp_apply")>
+               10.0  95.8r       ... excl::process-script
+                1.7  16.0r       concatenate
+-----------------------------------------------------
+               10.0 100.0        ... #<Runtime Function Object (:runsys
+                                                                "lisp_apply")>
+  0.0  99.9    10.0   0.0   excl::process-script
+               10.0 100.0        eval
+-----------------------------------------------------
+               10.0 100.0        excl::process-script
+  0.0  99.9    10.0   0.0   eval
+               10.0 100.0        profile
+-----------------------------------------------------
+               10.0 100.0        eval
+  0.0  99.9    10.0   0.0   profile
+               10.0 100.0        prof::prof-a-funcall
+-----------------------------------------------------
+               10.0 100.0        profile
+  0.0  99.9    10.0   0.0   prof::prof-a-funcall
+               10.0 100.0        (:internal profile 3)
+-----------------------------------------------------
+               10.0 100.0        prof::prof-a-funcall
+  0.0  99.9    10.0   0.0   (:internal profile 3)
+               10.0 100.0        profile2
+-----------------------------------------------------
+               10.0 100.0        (:internal profile 3)
+  0.0  99.9    10.0   0.0   profile2
+               10.0 100.0        do-bm-1
+-----------------------------------------------------
+               10.0 100.0        profile2
+  0.0  99.9    10.0   0.0   do-bm-1
+               10.0 100.0        excl::time-a-funcall
+-----------------------------------------------------
+               10.0 100.0        do-bm-1
+  0.0  99.9    10.0   0.0   ... excl::time-a-funcall
+               10.0 100.0        ... (:internal do-bm-1 2)
+-----------------------------------------------------
+               10.0 100.0        ... excl::time-a-funcall
+  0.5  99.9    10.0   0.5   ... (:internal do-bm-1 2)
+                9.9  99.5        uri-perf-render-uri
+-----------------------------------------------------
+                9.9 100.0        (:internal do-bm-1 2)
+  1.7  99.4     9.9   1.7   ... uri-perf-render-uri
+                8.7  88.1        (method render-uri (uri t))
+                0.8   7.9        (method render-uri (urn t))
+-----------------------------------------------------
+                8.7 100.0        uri-perf-render-uri
+ 10.2  87.6     8.7  11.7   ... (method render-uri (uri t))
+                2.8  32.2        excl::concat-to-simple-string
+                2.1  24.1        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+                0.7   8.5        net.uri::render-parsed-path
+                0.6   6.3        string-downcase
+                0.5   5.4        ...
+                0.3   3.8        (:discriminator
+                                  (:two-class-reader nil))
+                0.3   3.8        excl::print-fixnum
+                0.2   2.5        (method uri-parsed-path (uri))
+                0.2   2.3        (:internal excl::defresource-1 1)
+-----------------------------------------------------
+                2.8  88.9        (method render-uri (uri t))
+                0.3  11.1        (method render-uri (urn t))
+ 28.5  31.7     3.2  89.9   ... excl::concat-to-simple-string
+                0.3   8.4        ...
+                0.2   7.1        length
+-----------------------------------------------------
+                1.7 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+  1.4  16.6     1.7   8.4   ... concatenate
+                1.2  71.7        excl::concat-to-simple*
+                0.3  18.1        excl::deftype-expand
+                0.1   3.6        ...
+-----------------------------------------------------
+                1.2 100.0        concatenate
+  9.8  11.9     1.2  82.4   ... excl::concat-to-simple*
+                0.2  16.0        length
+                0.1  10.1        ...
+-----------------------------------------------------
+                0.8 100.0        uri-perf-render-uri
+  1.1   7.8     0.8  14.1   ... (method render-uri (urn t))
+                0.3  44.9        excl::concat-to-simple-string
+                0.2  19.2        (:discriminator
+                                  (:two-class-reader nil))
+                0.1  11.5        ...
+                0.1   7.7        (:discriminator
+                                  (:one-class-reader nil))
+                0.1   6.4        (:discriminator
+                                  (:two-class-writer nil))
+                0.0   3.8        "unbind_one_spec"
+                0.0   2.6        "bind_one_spec"
+-----------------------------------------------------
+                0.7 100.0        (method render-uri (uri t))
+  4.3   7.4     0.7  58.1   ... net.uri::render-parsed-path
+                0.1  17.6        "list_nreverse"
+                0.1  12.2        ...
+                0.1   9.5        "qcons"
+                0.1   8.1        net.uri::encode-escaped-encoding
+                0.0   4.1        keywordp
+                0.0   2.7        "sigprocmask"
+-----------------------------------------------------
+                0.3  55.0        (method render-uri (uri t))
+                0.2  25.0        (method render-uri (urn t))
+                0.1  20.0        (method uri-parsed-path (uri))
+  5.0   6.0     0.6  83.3   (:discriminator (:two-class-reader nil))
+                0.1  16.7        "q_wrapper_slots_std"
+-----------------------------------------------------
+                0.6 100.0        (method render-uri (uri t))
+  3.3   5.5     0.6  60.0   ... string-downcase
+                0.2  36.4        char-downcase
+                0.1  12.7        ...
+                0.0   3.6        "kwdscan"
+-----------------------------------------------------
+                0.2  53.7        excl::concat-to-simple-string
+                0.2  46.3        excl::concat-to-simple*
+  4.1   4.1     0.4 100.0   length
+-----------------------------------------------------
+                0.3 100.0        (method render-uri (uri t))
+  1.7   3.3     0.3  51.5   excl::print-fixnum
+                0.2  48.5        excl::write-string-nokey-se
+-----------------------------------------------------
+                0.3 100.0        concatenate
+  0.4   3.0     0.3  13.3   ... excl::deftype-expand
+                0.3  86.7        excl::deftype-expand-1
+                0.0  10.0        ...
+-----------------------------------------------------
+                0.3 100.0        excl::deftype-expand
+  1.5   2.6     0.3  57.7   ... excl::deftype-expand-1
+                0.1  42.3        ...
+                0.1  38.5        excl::get_2op
+                0.0   3.8        excl::get-property
+-----------------------------------------------------
+                0.2 100.0        (method render-uri (uri t))
+  0.9   2.2     0.2  40.9   ... (method uri-parsed-path (uri))
+                0.1  54.5        (:discriminator
+                                  (:two-class-reader nil))
+                0.0   4.5        ...
+                0.0   4.5        uri-path
+-----------------------------------------------------
+                0.2 100.0        (method render-uri (uri t))
+  1.3   2.0     0.2  65.0   (:internal excl::defresource-1 1)
+                0.0  15.0        (:internal
+                                  (:top-level-form "streamd.cl" 112550)
+                                  1)
+                0.0  10.0        "gc_setf_protect"
+                0.0  10.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+                0.2 100.0        string-downcase
+  2.0   2.0     0.2 100.0   char-downcase
+-----------------------------------------------------
+                0.1  38.9        (method render-uri (uri t))
+                0.1  33.3        uri-perf-render-uri
+                0.1  27.8        (method render-uri (urn t))
+  0.7   1.8     0.2  38.9   (:discriminator (:two-class-writer nil))
+                0.1  33.3        "gc_setf_protect"
+                0.1  27.8        "q_wrapper_slots_std"
+-----------------------------------------------------
+                0.1  55.6        (:discriminator
+                                  (:two-class-reader nil))
+                0.1  27.8        (:discriminator
+                                  (:two-class-writer nil))
+                0.0  16.7        (:discriminator
+                                  (:one-class-reader nil))
+  1.8   1.8     0.2 100.0   "q_wrapper_slots_std"
+-----------------------------------------------------
+                0.2 100.0        uri-perf-render-uri
+  1.5   1.7     0.2  88.2   (:discriminator (:caching (class t) nil))
+                0.0  11.8        "q_wrapper"
+-----------------------------------------------------
+                0.1  52.9        "list_nreverse"
+                0.1  35.3        (:discriminator
+                                  (:two-class-writer nil))
+                0.0  11.8        (:internal excl::defresource-1 1)
+  1.7   1.7     0.2 100.0   "gc_setf_protect"
+-----------------------------------------------------
+                0.2 100.0        excl::print-fixnum
+  0.8   1.6     0.2  50.0   excl::write-string-nokey-se
+                0.1  50.0        excl::string-output-write-chars
+-----------------------------------------------------
+                0.1  53.8r       (method render-uri (uri t))
+                0.0  23.1r       excl::concat-to-simple-string
+                0.0  23.1r       (method render-uri (urn t))
+                0.0   7.7r       "unbind_one_spec"
+  0.3   1.3     0.1  23.1   "unbind_one_spec"
+                0.1  42.9        "qsetlocd"
+                0.0  28.6        "new_simple_string"
+                0.0   7.1        "unbind_one_spec"
+-----------------------------------------------------
+                0.1 100.0r       net.uri::render-parsed-path
+                0.0  30.8r       "list_nreverse"
+  0.4   1.3     0.1  30.8   "list_nreverse"
+                0.1  52.9        "gc_setf_protect"
+                0.0  23.5        "list_nreverse"
+-----------------------------------------------------
+                0.0  33.3        "unbind_one_spec"
+                0.0  25.0        ... excl::concat-to-simple-string
+                0.0  16.7        "_end"
+                0.0   8.3        ... excl::concat-to-simple*
+                0.0   8.3        "funlockfile"
+                0.0   8.3        "start"
+  1.2   1.2     0.1 100.0   "new_simple_string"
+-----------------------------------------------------
+                0.1  60.0        (method render-uri (urn t))
+                0.0  40.0        (method render-uri (uri t))
+  0.7   1.0     0.1  70.0   (:discriminator (:one-class-reader nil))
+                0.0  30.0        "q_wrapper_slots_std"
+-----------------------------------------------------
+                0.1 100.0        excl::deftype-expand-1
+  1.0   1.0     0.1 100.0   excl::get_2op
+-----------------------------------------------------
+
+
+;;;;;;; :space #<Function profile3>
+; cpu time (non-gc) 13.412959 sec user, 0.098985 sec system
+; cpu time (gc)     0.038996 sec user, 0.001000 sec system
+; cpu time (total)  13.451955 sec user, 0.099985 sec system
+; real time  13.609895 sec (99.57%)
+; space allocation:
+;  15,400,871 cons cells, 539,929,936 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 13), minor: 13 (gc: 13)
+Sampling stopped after 95955 samples taken for the space profiler.
+
+Sample represents 767640.0 Kbytes of space allocated.
+
+Mem.s below 1.0% will be suppressed.
+
+ %    %     self  total         self   total  Function                                  
+Mem. Cum.  Kbyte  Kbyte calls by/call by/call   name                                    
+30.4 30.4 233024 233024                       ... get-output-stream-string
+22.2 52.6 170704 170704                       ... net.uri::render-parsed-path
+19.3 71.9 148168 148168                       ... excl::concat-to-simple-string
+11.2 83.1  86088  86088                       ... excl::concat-to-simple*
+ 7.3 90.4  56280  56280                       ... string-downcase
+ 4.6 95.0  35376 767640                       ... format
+ 4.6 99.6  34992  34992                       ... excl::pop-format-arg
+Space profile of sampled pc values by function, children, and parents.
+
+Total mem.s below 1.0% will be suppressed.
+Parent and child mem.s less 2.0% of the node will be suppressed.
+Sampling stopped after 95955 samples taken for the space profiler.
+
+Sample represents 767640.0 Kbytes of space allocated.
+
+  %     %                       Parent
+ self total   total local  Function
+ Mem.  Mem.   Kbyte   %         Child
+
+  0.0 100.0  767640   0.0   ... "start"
+             767640 100.0        ... "start_reborn_lisp"
+-----------------------------------------------------
+             767640 100.0        ... "start"
+  0.0 100.0  767640   0.0   "start_reborn_lisp"
+             767640 100.0        "first_lisp_thread"
+-----------------------------------------------------
+             767640 100.0        "start_reborn_lisp"
+  0.0 100.0  767640   0.0   "first_lisp_thread"
+             767640 100.0        excl::lisp-thread-start
+-----------------------------------------------------
+             767640 100.0        "first_lisp_thread"
+  0.0 100.0  767640   0.0   excl::lisp-thread-start
+             767640 100.0        excl::run-initial-thread
+-----------------------------------------------------
+             767640 100.0        excl::lisp-thread-start
+  0.0 100.0  767640   0.0   ... excl::run-initial-thread
+             767640 100.0        ... excl::thread-reset-catcher
+-----------------------------------------------------
+             767640 100.0        ... excl::run-initial-thread
+  0.0 100.0  767640   0.0   excl::thread-reset-catcher
+             767640 100.0        excl::thread-bind-and-call
+-----------------------------------------------------
+             767640 100.0        excl::thread-reset-catcher
+  0.0 100.0  767640   0.0   excl::thread-bind-and-call
+             767640 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+             767640 100.0r       excl::thread-bind-and-call
+              86088  11.2r       (method render-uri (uri t))
+  0.0 100.0  767640   0.0   ... #<Runtime Function Object (:runsys
+                                                           "lisp_apply")>
+             767640 100.0r       ... excl::process-script
+              86088  11.2r       concatenate
+-----------------------------------------------------
+             767640 100.0        ... #<Runtime Function Object (:runsys
+                                                                "lisp_apply")>
+  0.0 100.0  767640   0.0   excl::process-script
+             767640 100.0        eval
+-----------------------------------------------------
+             767640 100.0        excl::process-script
+  0.0 100.0  767640   0.0   eval
+             767640 100.0        profile
+-----------------------------------------------------
+             767640 100.0        eval
+  0.0 100.0  767640   0.0   profile
+             767640 100.0        prof::prof-a-funcall
+-----------------------------------------------------
+             767640 100.0        profile
+  0.0 100.0  767640   0.0   prof::prof-a-funcall
+             767640 100.0        (:internal profile 4)
+-----------------------------------------------------
+             767640 100.0        prof::prof-a-funcall
+  0.0 100.0  767640   0.0   (:internal profile 4)
+             767640 100.0        profile3
+-----------------------------------------------------
+             767640 100.0        (:internal profile 4)
+  0.0 100.0  767640   0.0   profile3
+             767640 100.0        do-bm-1
+-----------------------------------------------------
+             767640 100.0        profile3
+  0.0 100.0  767640   0.0   do-bm-1
+             767640 100.0        excl::time-a-funcall
+-----------------------------------------------------
+             767640 100.0        do-bm-1
+  0.0 100.0  767640   0.0   ... excl::time-a-funcall
+             767624 100.0        ... (:internal do-bm-1 2)
+-----------------------------------------------------
+             767624 100.0        uri-perf-format
+  0.0 100.0  767640   0.0   format
+             529792  69.0        excl::process-format-string
+             202472  26.4        get-output-stream-string
+              35376   4.6        "restify2"
+-----------------------------------------------------
+             767624 100.0        ... excl::time-a-funcall
+  0.0 100.0  767624   0.0   (:internal do-bm-1 2)
+             767624 100.0        uri-perf-format
+-----------------------------------------------------
+             767624 100.0        (:internal do-bm-1 2)
+  0.0 100.0  767624   0.0   uri-perf-format
+             767624 100.0        format
+-----------------------------------------------------
+             529792 100.0        format
+  0.0  69.0  529792   0.0   excl::process-format-string
+             529792 100.0        excl::format-xp-print
+-----------------------------------------------------
+             529792 100.0        excl::process-format-string
+  0.0  69.0  529792   0.0   excl::format-xp-print
+             528936  99.8        excl::format-engine
+-----------------------------------------------------
+             528936 100.0        excl::format-xp-print
+  0.0  68.9  528936   0.0   excl::format-engine
+             493928  93.4        princ
+              34992   6.6        excl::pop-format-arg
+-----------------------------------------------------
+             233024  44.3        get-output-stream-string
+             148168  28.2        excl::concat-to-simple-string
+              86088  16.4        excl::concat-to-simple*
+              56280  10.7        string-downcase
+ 68.5  68.5  525696 100.0   "new_simple_string"
+-----------------------------------------------------
+             493928 100.0        princ
+  0.0  64.3  493936   0.0   excl::basic-write
+             493928 100.0        excl::write+
+-----------------------------------------------------
+             493928 100.0        excl::format-engine
+  0.0  64.3  493928   0.0   princ
+             493928 100.0        excl::basic-write
+-----------------------------------------------------
+             493928 100.0        excl::basic-write
+  0.0  64.3  493928   0.0   excl::write+
+             492528  99.7        (method render-uri (uri t))
+-----------------------------------------------------
+             492528 100.0        excl::write+
+  0.0  64.2  492528   0.0   (method render-uri (uri t))
+             170704  34.7        net.uri::render-parsed-path
+             146768  29.8        excl::concat-to-simple-string
+              86088  17.5        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+              56280  11.4        string-downcase
+              30552   6.2        get-output-stream-string
+-----------------------------------------------------
+             170704  70.8        net.uri::render-parsed-path
+              35376  14.7        "restify2"
+              34992  14.5        excl::pop-format-arg
+ 31.4  31.4  241072 100.0   "lisp_cons"
+-----------------------------------------------------
+             202472  86.9        format
+              30552  13.1        (method render-uri (uri t))
+  0.0  30.4  233024   0.0   get-output-stream-string
+             233024 100.0        "new_simple_string"
+-----------------------------------------------------
+             170704 100.0        (method render-uri (uri t))
+  0.0  22.2  170704   0.0   net.uri::render-parsed-path
+             170704 100.0        "lisp_cons"
+-----------------------------------------------------
+             146768  99.1        (method render-uri (uri t))
+  0.0  19.3  148168   0.0   excl::concat-to-simple-string
+             148168 100.0        "new_simple_string"
+-----------------------------------------------------
+              86088 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+  0.0  11.2   86088   0.0   concatenate
+              86088 100.0        excl::concat-to-simple*
+-----------------------------------------------------
+              86088 100.0        concatenate
+  0.0  11.2   86088   0.0   excl::concat-to-simple*
+              86088 100.0        "new_simple_string"
+-----------------------------------------------------
+              56280 100.0        (method render-uri (uri t))
+  0.0   7.3   56280   0.0   string-downcase
+              56280 100.0        "new_simple_string"
+-----------------------------------------------------
+              35376 100.0        format
+  0.0   4.6   35376   0.0   "restify2"
+              35376 100.0        "lisp_cons"
+-----------------------------------------------------
+              34992 100.0        excl::format-engine
+  0.0   4.6   34992   0.0   excl::pop-format-arg
+              34992 100.0        "lisp_cons"
+-----------------------------------------------------
+
+
+;;;;;;; :time #<Function profile3>
+; cpu time (non-gc) 12.472103 sec user, 0.000000 sec system
+; cpu time (gc)     0.034996 sec user, 0.002000 sec system
+; cpu time (total)  12.507099 sec user, 0.002000 sec system
+; real time  12.511341 sec (99.98%)
+; space allocation:
+;  15,400,814 cons cells, 538,399,264 other bytes, 0 static bytes
+; Page Faults: major: 0 (gc: 4), minor: 4 (gc: 4)
+Sampling stopped after 1241 samples taken for the time profiler.
+
+Sample represents 12.4 seconds of user+system CPU time (out of a total of 12.5).
+
+Times below 1.0% will be suppressed.
+
+ %    %   self total         self   total  Function                                  
+Time Cum. secs  secs calls ms/call ms/call   name                                    
+13.3 13.3  1.6   1.6                       excl::string-output-write-chars
+ 8.1 21.4  1.0   1.1                       ... excl::concat-to-simple-string
+ 3.7 25.1  0.5   5.1                       ... (method
+                                                render-uri
+                                                (uri t))
+ 3.5 28.6  0.4   0.7                       find-class
+ 2.9 31.5  0.4   7.7                       ... excl::write+
+ 2.7 34.2  0.3  11.3                       ... excl::format-xp-print
+ 2.3 36.5  0.3   1.3                       ... excl::attempt-to-output
+ 2.3 38.8  0.3   1.1                       (:internal
+                                            excl::defresource-1
+                                            1)
+ 2.2 40.9  0.3   0.3                       (:discriminator
+                                            (:two-class-reader nil))
+ 2.1 43.0  0.3   0.3                       ... excl::concat-to-simple*
+ 1.7 44.7  0.2   0.5                       "bind_one_spec"
+ 1.7 46.4  0.2   0.2                       "qsetlocd"
+ 1.6 48.0  0.2   0.3                       ... get-output-stream-string
+ 1.6 49.6  0.2   0.2                       ... (:discriminator
+                                                (:caching
+                                                 (class t)
+                                                 nil))
+ 1.5 51.2  0.2   1.4                       ... excl::get-printer
+ 1.5 52.7  0.2   0.3                       ... net.uri::render-parsed-path
+ 1.5 54.2  0.2   0.3                       ... excl::gethash_2op_1ret
+ 1.5 55.8  0.2   0.2                       "gc_setf_protect"
+ 1.5 57.2  0.2   8.0                       ... princ
+ 1.5 58.7  0.2   1.7                       excl::write-string-nokey-se
+ 1.5 60.1  0.2   0.7                       ... excl::initialize-xp-simple-stream
+ 1.5 61.6  0.2   0.2                       length
+ 1.4 62.9  0.2  12.4                       ... #<Runtime Function Object (:runsys
+                                                                          "lisp_apply")>
+ 1.1 64.1  0.1   0.2                       (:discriminator
+                                            (:caching (class) nil))
+ 1.0 65.1  0.1   0.2                       excl::enqueue
+ 1.0 66.2  0.1   0.2                       ... string-downcase
+ 1.0 67.2  0.1   0.1                       "gc_setf_protect_1"
+Time profile of sampled pc values by function, children, and parents.
+
+Total times below 1.0% will be suppressed.
+Parent and child times less 2.0% of the node will be suppressed.
+Sampling stopped after 1241 samples taken for the time profiler.
+
+Sample represents 12.4 seconds of user+system CPU time (out of a total of 12.5).
+
+  %     %                       Parent
+ self total   total local  Function
+ Time  Time    secs   %         Child
+
+  0.0 100.0    12.4   0.0   ... "start"
+               12.4 100.0        ... "start_reborn_lisp"
+-----------------------------------------------------
+               12.4 100.0        ... "start"
+  0.0 100.0    12.4   0.0   "start_reborn_lisp"
+               12.4 100.0        "first_lisp_thread"
+-----------------------------------------------------
+               12.4 100.0        "start_reborn_lisp"
+  0.0 100.0    12.4   0.0   "first_lisp_thread"
+               12.4 100.0        excl::lisp-thread-start
+-----------------------------------------------------
+               12.4 100.0        "first_lisp_thread"
+  0.0 100.0    12.4   0.0   excl::lisp-thread-start
+               12.4 100.0        excl::run-initial-thread
+-----------------------------------------------------
+               12.4 100.0        excl::lisp-thread-start
+  0.0 100.0    12.4   0.0   ... excl::run-initial-thread
+               12.4 100.0        ... excl::thread-reset-catcher
+-----------------------------------------------------
+               12.4 100.0        ... excl::run-initial-thread
+  0.0 100.0    12.4   0.0   excl::thread-reset-catcher
+               12.4 100.0        excl::thread-bind-and-call
+-----------------------------------------------------
+               12.4 100.0        excl::thread-reset-catcher
+  0.0 100.0    12.4   0.0   excl::thread-bind-and-call
+               12.4 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+-----------------------------------------------------
+               12.4 100.0r       excl::thread-bind-and-call
+                0.8   6.6r       (method render-uri (uri t))
+  1.4 100.0    12.4   1.4   ... #<Runtime Function Object (:runsys
+                                                           "lisp_apply")>
+               12.4  98.6r       ... excl::process-script
+                0.6   5.2r       concatenate
+-----------------------------------------------------
+               12.4 100.0        ... #<Runtime Function Object (:runsys
+                                                                "lisp_apply")>
+  0.0 100.0    12.4   0.0   excl::process-script
+               12.4 100.0        eval
+-----------------------------------------------------
+               12.4 100.0        excl::process-script
+  0.0 100.0    12.4   0.0   eval
+               12.4 100.0        profile
+-----------------------------------------------------
+               12.4 100.0        eval
+  0.0 100.0    12.4   0.0   profile
+               12.4 100.0        prof::prof-a-funcall
+-----------------------------------------------------
+               12.4 100.0        profile
+  0.0 100.0    12.4   0.0   prof::prof-a-funcall
+               12.4 100.0        (:internal profile 5)
+-----------------------------------------------------
+               12.4 100.0        prof::prof-a-funcall
+  0.0 100.0    12.4   0.0   (:internal profile 5)
+               12.4 100.0        profile3
+-----------------------------------------------------
+               12.4 100.0        (:internal profile 5)
+  0.0 100.0    12.4   0.0   profile3
+               12.4 100.0        do-bm-1
+-----------------------------------------------------
+               12.4 100.0        profile3
+  0.0 100.0    12.4   0.0   do-bm-1
+               12.4 100.0        excl::time-a-funcall
+-----------------------------------------------------
+               12.4 100.0        do-bm-1
+  0.0 100.0    12.4   0.0   ... excl::time-a-funcall
+               12.4 100.0        ... (:internal do-bm-1 2)
+-----------------------------------------------------
+               12.4 100.0        ... excl::time-a-funcall
+  0.3 100.0    12.4   0.3   ... (:internal do-bm-1 2)
+               12.4  99.7        uri-perf-format
+-----------------------------------------------------
+               12.4 100.0        (:internal do-bm-1 2)
+  0.5  99.7    12.4   0.5   ... uri-perf-format
+               12.3  99.1        format
+-----------------------------------------------------
+               12.3 100.0        uri-perf-format
+  1.0  98.8    12.3   1.0   ... format
+               11.7  95.4        excl::process-format-string
+                0.2   2.0        get-output-stream-string
+-----------------------------------------------------
+               11.7 100.0        format
+  0.8  94.2    11.7   0.9   ... excl::process-format-string
+               11.3  96.3        excl::format-xp-print
+-----------------------------------------------------
+               11.3 100.0        excl::process-format-string
+  2.7  90.7    11.3   3.0   ... excl::format-xp-print
+                8.2  72.6        excl::format-engine
+                1.3  11.3        excl::attempt-to-output
+                0.9   7.6        (:internal excl::defresource-1 1)
+-----------------------------------------------------
+                8.2 100.0        excl::format-xp-print
+  1.0  65.9     8.2   1.5   ... excl::format-engine
+                8.0  98.2        princ
+-----------------------------------------------------
+                8.0 100.0r       excl::format-engine
+                1.7  20.7r       (method render-uri (uri t))
+  1.5  64.7     8.0   2.2   ... princ
+                7.8  96.6r       excl::basic-write
+-----------------------------------------------------
+                7.8 100.0        princ
+  0.6  62.6     7.8   1.0   ... excl::basic-write
+                7.7  99.1        excl::write+
+-----------------------------------------------------
+                7.7 100.0        excl::basic-write
+  2.9  62.4     7.7   4.7   ... excl::write+
+                5.1  66.4r       (method render-uri (uri t))
+                1.5  19.1r       excl::write++
+                1.2  15.1r       excl::non-pretty-print
+                0.5   6.5r       (method render-uri (urn t))
+                0.2   2.5r       (:discriminator
+                                  (:caching (class t) nil))
+                0.2   2.1r       (:discriminator (:caching (class) nil))
+-----------------------------------------------------
+                5.1 100.0        excl::write+
+  3.7  41.0     5.1   9.0   ... (method render-uri (uri t))
+                1.7  32.6        princ
+                1.0  20.0        excl::concat-to-simple-string
+                0.8  16.1        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+                0.3   6.1        net.uri::render-parsed-path
+                0.2   4.1        ...
+                0.2   3.3        (:discriminator
+                                  (:two-class-reader nil))
+                0.2   3.3        (method uri-parsed-path (uri))
+                0.2   2.9        string-downcase
+-----------------------------------------------------
+                0.9  50.6        excl::maybe-print-fast-1
+                0.8  47.1        excl::check-annotations-and-write
+                0.0   2.3        excl::print-fixnum
+  1.5  13.9     1.7  10.5   excl::write-string-nokey-se
+                1.5  89.5        excl::string-output-write-chars
+-----------------------------------------------------
+                1.5  93.3        excl::write-string-nokey-se
+                0.1   6.7        excl::write-string-nokey
+ 13.3  13.3     1.6 100.0   excl::string-output-write-chars
+-----------------------------------------------------
+                1.5 100.0        excl::write+
+  0.7  11.8     1.5   6.2   ... excl::write++
+                1.4  93.8        excl::get-printer
+-----------------------------------------------------
+                1.4 100.0        excl::write++
+  1.5  11.0     1.4  13.9   ... excl::get-printer
+                0.9  63.5        excl::proper-class-name
+                0.1   6.6        excl::proper-class-name-of
+                0.1   5.1        ...
+                0.1   3.6        excl::always-true
+                0.1   3.6        type-of
+                0.0   2.9        consp
+                0.0   2.9        (:discriminator
+                                  (:one-index-reader nil))
+                0.0   2.2        excl::function-call-p
+-----------------------------------------------------
+                1.3 100.0        excl::format-xp-print
+  2.3  10.2     1.3  22.0   ... excl::attempt-to-output
+                0.8  66.1        excl::check-annotations-and-write
+                0.1  10.2        ...
+                0.0   3.1        excl::eql-not-eq
+                0.0   3.1        excl::catchup-char-mode
+                0.0   2.4        excl::push-prefix-stack
+-----------------------------------------------------
+                1.2 100.0        excl::write+
+  0.2   9.3     1.2   1.7   ... excl::non-pretty-print
+                1.0  88.8        (flet
+                                  (method print-object (t t))
+                                  excl::print-object-1)
+                0.1   5.2        (:discriminator
+                                  (:caching (class t) nil))
+-----------------------------------------------------
+                1.0  91.1        (method render-uri (uri t))
+                0.1   8.9        (method render-uri (urn t))
+  8.1   9.0     1.1  90.2   ... excl::concat-to-simple-string
+                0.1  10.8        ...
+                0.1   9.0        length
+-----------------------------------------------------
+                0.9  79.6        excl::format-xp-print
+                0.2  14.8        format
+                0.1   5.6        (method render-uri (uri t))
+  2.3   8.7     1.1  25.9   (:internal excl::defresource-1 1)
+                0.7  64.8        excl::initialize-xp-simple-stream
+                0.1   4.6        "gc_setf_protect"
+                0.0   2.8        (:internal
+                                  (:top-level-form "streamd.cl" 112550)
+                                  1)
+-----------------------------------------------------
+                1.0 100.0        excl::non-pretty-print
+  0.6   8.3     1.0   6.8   ... (flet
+                                 (method print-object (t t))
+                                 excl::print-object-1)
+                1.0  93.2        excl::maybe-print-fast-1
+                0.0   3.9        ...
+-----------------------------------------------------
+                1.0 100.0        (flet
+                                  (method print-object (t t))
+                                  excl::print-object-1)
+  0.7   7.7     1.0   9.4   ... excl::maybe-print-fast-1
+                0.9  90.6        excl::write-string-nokey-se
+                0.0   2.1        ...
+-----------------------------------------------------
+                0.9 100.0        excl::get-printer
+  0.6   7.0     0.9   9.2   ... excl::proper-class-name
+                0.8  90.8        excl::properly-named-class
+                0.0   4.6        ...
+-----------------------------------------------------
+                0.8 100.0        excl::attempt-to-output
+  0.2   6.8     0.8   3.6   ... excl::check-annotations-and-write
+                0.8  96.4        excl::write-string-nokey-se
+-----------------------------------------------------
+                0.8 100.0        excl::proper-class-name
+  0.3   6.4     0.8   5.1   ... excl::properly-named-class
+                0.7  86.1        find-class
+                0.1   7.6        (:discriminator
+                                  (:one-index-reader nil))
+                0.0   2.5        ...
+-----------------------------------------------------
+                0.7 100.0        (:internal excl::defresource-1 1)
+  1.5   5.6     0.7  25.7   ... excl::initialize-xp-simple-stream
+                0.4  60.0        excl::initialize-a-o-s-s
+                0.1  10.0        charpos
+                0.0   5.7        ...
+                0.0   2.9        "gc_setf_protect"
+-----------------------------------------------------
+                0.7 100.0        excl::properly-named-class
+  3.5   5.5     0.7  63.2   find-class
+                0.2  36.8        excl::gethash_2op_1ret
+-----------------------------------------------------
+                0.6 100.0        #<Runtime Function Object (:runsys
+                                                            "lisp_apply")>
+  0.6   5.2     0.6  12.3   ... concatenate
+                0.3  52.3        excl::concat-to-simple*
+                0.2  30.8        excl::deftype-expand
+                0.0   4.6        ... "st_restify"
+                0.0   3.1        ...
+-----------------------------------------------------
+                0.5 100.0        excl::write+
+  0.6   4.0     0.5  16.0   ... (method render-uri (urn t))
+                0.2  36.0        excl::write-string-nokey
+                0.1  20.0        excl::concat-to-simple-string
+                0.1  12.0        (:discriminator
+                                  (:two-class-reader nil))
+                0.0   8.0        ...
+                0.0   6.0        (:discriminator
+                                  (:one-class-reader nil))
+                0.0   6.0        (:discriminator
+                                  (:two-class-writer nil))
+                0.0   4.0        "bind_one_spec"
+-----------------------------------------------------
+                0.2  37.0r       excl::format-xp-print
+                0.1  28.3r       excl::process-format-string
+                0.1  26.1r       "bind_one_spec"
+                0.1  13.0r       princ
+                0.0   8.7r       "unbind_count"
+                0.0   4.3r       (method render-uri (urn t))
+                0.0   4.3r       (method render-uri (uri t))
+                0.0   2.2r       (:discriminator
+                                  (:one-class-reader nil))
+                0.0   2.2r       excl::non-pretty-print
+  1.7   3.7     0.5  45.7   "bind_one_spec"
+                0.1  22.4        "gc_setf_protect_1"
+                0.1  20.7        "bind_one_spec"
+                0.1  12.1        "qsymloc"
+                0.0   6.9        "qsetloc"
+-----------------------------------------------------
+                0.4 100.0        excl::initialize-xp-simple-stream
+  0.6   3.4     0.4  19.0   ... excl::initialize-a-o-s-s
+                0.1  28.6        file-position
+                0.1  28.6        (setf excl::non-file-position)
+                0.1  19.0        (method
+                                  (setf device-file-position)
+                                  (t string-output-simple-stream))
+                0.1  11.9        ...
+                0.0   4.8        (setf device-file-position)
+-----------------------------------------------------
+                0.3 100.0        concatenate
+  2.1   2.7     0.3  76.5   ... excl::concat-to-simple*
+                0.1  20.6        length
+                0.0   8.8        ...
+                0.0   2.9        "sigprocmask"
+-----------------------------------------------------
+                0.3 100.0        (method render-uri (uri t))
+  1.5   2.5     0.3  61.3   ... net.uri::render-parsed-path
+                0.1  16.1        ...
+                0.1  16.1        "qcons"
+                0.0   9.7        "sigprocmask"
+                0.0   6.5        net.uri::encode-escaped-encoding
+                0.0   3.2        "page_from_new"
+                0.0   3.2        "list_nreverse"
+-----------------------------------------------------
+                0.2  56.7        (method render-uri (uri t))
+                0.1  23.3        (method uri-parsed-path (uri))
+                0.1  20.0        (method render-uri (urn t))
+  2.2   2.4     0.3  90.0   (:discriminator (:two-class-reader nil))
+                0.0  10.0        "q_wrapper_slots_std"
+-----------------------------------------------------
+                0.1  44.8r       princ
+                0.1  34.5r       excl::format-xp-print
+                0.1  20.7r       excl::process-format-string
+                0.0   6.9r       "unbind_count"
+  0.6   2.3     0.3  27.6   "unbind_count"
+                0.2  54.8        "qsetlocd"
+                0.0  12.9        "bind_one_spec"
+                0.0   6.5        "unbind_count"
+-----------------------------------------------------
+                0.2  92.6        format
+                0.0   7.4        (method render-uri (uri t))
+  1.6   2.2     0.3  74.1   ... get-output-stream-string
+                0.0  14.8        ... "new_simple_string"
+                0.0   7.4        "_end"
+                0.0   3.7        "restify2"
+-----------------------------------------------------
+                0.2  96.2        find-class
+                0.0   3.8        excl::get-printer
+  1.5   2.1     0.3  73.1   ... excl::gethash_2op_1ret
+                0.1  26.9        excl::eq-hash-fcn
+                0.0  15.4        ...
+-----------------------------------------------------
+                0.2  76.0        excl::write+
+                0.1  24.0        excl::non-pretty-print
+  1.6   2.0     0.2  80.0   ... (:discriminator
+                                 (:caching (class t) nil))
+                0.0  12.5        "q_wrapper"
+                0.0   8.3        excl::internal-wrapper-of
+-----------------------------------------------------
+                0.2  81.0        "unbind_count"
+                0.0  19.0        "unbind_one_spec"
+  1.7   1.7     0.2 100.0   "qsetlocd"
+-----------------------------------------------------
+                0.2 100.0        concatenate
+  0.4   1.6     0.2  25.0   ... excl::deftype-expand
+                0.2  75.0        excl::deftype-expand-1
+                0.0   5.0        ...
+-----------------------------------------------------
+                0.1  26.3        (:internal excl::defresource-1 1)
+                0.0  21.1        (method
+                                  (setf device-file-position)
+                                  (t string-output-simple-stream))
+                0.0  15.8        excl::enqueue
+                0.0  10.5        (:discriminator
+                                  (:two-class-writer nil))
+                0.0  10.5        excl::initialize-xp-simple-stream
+                0.0   5.3        "list_nreverse"
+                0.0   5.3        excl::push-prefix-stack
+                0.0   5.3        excl::attempt-to-output
+  1.5   1.5     0.2 100.0   "gc_setf_protect"
+-----------------------------------------------------
+                0.2 100.0        excl::format-xp-print
+  0.5   1.5     0.2  33.3   ... excl::s-end-block
+                0.1  66.7        excl::enqueue
+                0.0  11.1        ...
+-----------------------------------------------------
+                0.2 100.0        (method render-uri (urn t))
+  0.5   1.5     0.2  33.3   ... excl::write-string-nokey
+                0.1  61.1        excl::string-output-write-chars
+                0.0   5.6        ...
+                0.0   5.6        length
+-----------------------------------------------------
+                0.1  55.6        excl::concat-to-simple-string
+                0.1  38.9        excl::concat-to-simple*
+                0.0   5.6        excl::write-string-nokey
+  1.5   1.5     0.2 100.0   length
+-----------------------------------------------------
+                0.2 100.0        (method render-uri (uri t))
+  0.8   1.4     0.2  58.8   ... (method uri-parsed-path (uri))
+                0.1  41.2        (:discriminator
+                                  (:two-class-reader nil))
+                0.0   5.9        ...
+-----------------------------------------------------
+                0.1  75.0        excl::s-end-block
+                0.0  25.0        excl::s-start-block
+  1.0   1.3     0.2  81.2   excl::enqueue
+                0.0  18.7        "gc_setf_protect"
+-----------------------------------------------------
+                0.2 100.0        excl::write+
+  1.1   1.3     0.2  87.5   (:discriminator (:caching (class) nil))
+                0.0  12.5        "q_wrapper"
+-----------------------------------------------------
+                0.2 100.0        (method render-uri (uri t))
+  1.0   1.2     0.2  86.7   ... string-downcase
+                0.0  26.7        ...
+                0.0   6.7        char-downcase
+                0.0   6.7        ... "new_simple_string"
+-----------------------------------------------------
+                0.2 100.0        excl::deftype-expand
+  0.7   1.2     0.2  60.0   ... excl::deftype-expand-1
+                0.1  53.3        ...
+                0.0  26.7        excl::get_2op
+                0.0  13.3        excl::get-property
+-----------------------------------------------------
+                0.1  42.9r       excl::process-format-string
+                0.1  35.7r       excl::format-xp-print
+                0.0  14.3r       ... excl::non-pretty-print
+                0.0  14.3r       "unbind_one_spec"
+                0.0   7.1r       (method render-uri (uri t))
+  0.8   1.1     0.1  71.4   "unbind_one_spec"
+                0.0  25.0        "qsetlocd"
+                0.0  12.5        "unbind_one_spec"
+-----------------------------------------------------
+                0.1 100.0        "bind_one_spec"
+  1.0   1.0     0.1 100.0   "gc_setf_protect_1"
+-----------------------------------------------------
+; Exiting
+make[1]: Leaving directory `/net/walter/acl/acl10.1.64/src/uri'
