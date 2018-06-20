@@ -970,6 +970,8 @@ URI ~s contains illegal character ~s at position ~d."
   ;; See ../doc/rfc2396.txt for info on the algorithm we use to merge
   ;; URIs.
   ;;
+  ;; This function *always* returns a *new* URI.
+  ;;
   (tagbody
 ;;;; step 2
     (when (and (null (uri-path uri))
