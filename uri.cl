@@ -7,8 +7,9 @@
 ;; See the file LICENSE for the full license governing this code.
 
 #+(version= 9 0)
-(sys:defpatch "uri" 5
-  "v5: bring up to spec with RFCs 3986, 6874 and 8141;
+(sys:defpatch "uri" 6
+  "v6: fixes for non-strict mode parsing;
+v5: bring up to spec with RFCs 3986, 6874 and 8141;
 v4: handle no-authority URIs with `hdfs' scheme the same as `file';
 v3: Fix handling of #\% chars in path component of uri;
 v2: speed up parse-uri;
@@ -17,16 +18,18 @@ v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :post-loadable t)
 
 #+(version= 10 0)
-(sys:defpatch "uri" 3
-  "v3: bring up to spec with RFCs 3986, 6874 and 8141;
+(sys:defpatch "uri" 4
+  "v4: fixes for non-strict mode parsing;
+v3: bring up to spec with RFCs 3986, 6874 and 8141;
 v2: allow null query;
 v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :type :system
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 1
-  "v1: bring up to spec with RFCs 3986, 6874 and 8141."
+(sys:defpatch "uri" 2
+  "v2: fixes for non-strict mode parsing;
+v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
   :post-loadable t)
 
@@ -466,7 +469,11 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
     (make-char-bitvector *fragment-strict-chars*))
 
 (defparameter *fragment-bitvector-non-strict*
-    (make-char-bitvector (append *fragment-strict-chars* '(#\#))))
+    (make-char-bitvector
+     (append *fragment-strict-chars*
+	     '(#\#
+	       ;; Too many websites/tools use these in URLs
+	       #\space #\|))))
 
 (defparameter *segment-nz-nc-bitvector*
     (make-char-bitvector *segment-nz-nc-chars*))
@@ -1546,7 +1553,7 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
 		(val string ipv6)
 		(val string zone-id)))))
     
-  (excl::.parse-error "Couldn't parse uri: ~a." string))
+  (excl::.parse-error "Couldn't parse uri: ~s." string))
 
 (defun parse-uri (thing &key (class 'uri)
 			     (escape nil escape-supplied)
