@@ -474,6 +474,11 @@
       (test "foo%23bar#foobar#baz"
 	    (format nil "~a" (parse-uri "foo%23bar#foobar#baz"))
 	    :test 'string=))
+    
+    (let ((net.uri::*strict-parse* nil))
+      (test "http://foo.com/bar"
+	    (format nil "~a" (parse-uri "http://foo.com//bar"))
+	    :test 'string=))
        
     (let ((net.uri::*strict-parse* t))
       (test "foo%23bar#foobar%23baz"

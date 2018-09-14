@@ -7,8 +7,9 @@
 ;; See the file LICENSE for the full license governing this code.
 
 #+(version= 9 0)
-(sys:defpatch "uri" 6
-  "v6: fixes for non-strict mode parsing;
+(sys:defpatch "uri" 7
+  "v7: more fixes for non-strict mode parsing;
+v6: fixes for non-strict mode parsing;
 v5: bring up to spec with RFCs 3986, 6874 and 8141;
 v4: handle no-authority URIs with `hdfs' scheme the same as `file';
 v3: Fix handling of #\% chars in path component of uri;
@@ -18,8 +19,9 @@ v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :post-loadable t)
 
 #+(version= 10 0)
-(sys:defpatch "uri" 4
-  "v4: fixes for non-strict mode parsing;
+(sys:defpatch "uri" 5
+  "v5: more fixes for non-strict mode parsing;
+v4: fixes for non-strict mode parsing;
 v3: bring up to spec with RFCs 3986, 6874 and 8141;
 v2: allow null query;
 v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
@@ -27,8 +29,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 2
-  "v2: fixes for non-strict mode parsing;
+(sys:defpatch "uri" 3
+  "v3: more fixes for non-strict mode parsing;
+v2: fixes for non-strict mode parsing;
 v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
   :post-loadable t)
@@ -463,7 +466,11 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     (make-char-bitvector *query-strict-chars*))
 
 (defparameter *query-bitvector-non-strict*
-    (make-char-bitvector (append *query-strict-chars* '(#\| #\^))))
+    (make-char-bitvector
+     (append *query-strict-chars*
+	     '(#\| #\^
+	       ;; Too many websites/tools use this in URLs
+	       #\space))))
 
 (defparameter *fragment-bitvector-strict*
     (make-char-bitvector *fragment-strict-chars*))
@@ -1212,9 +1219,18 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 			      #'scan-pct-encoded))
     (values i (xsubseq start i))))
        
-(defun state-path-abempty (string start end &aux (i start) i2)
+(defun state-path-abempty (string start end &aux i i2)
   ;; rule 21: path-abempty  = *( "/" *pchar )
   ;; values: i path
+  ;; NOTE: if *strict-parse* is nil, we allow the leading "/" to be "//",
+  ;;       because it is a common typo in HTML and sometimes fixing it is
+  ;;       not under our control.  Browsers work fine with this
+  ;;       non-conformance.
+  (when (and (not *strict-parse*)
+	     (looking-at "//" string start end))
+    ;; double leading slash is changed to a single leading slash.
+    (incf start))
+  (setq i start)
   (loop
     (setq i2 nil)
     (if* (looking-at #\/ string i end)
