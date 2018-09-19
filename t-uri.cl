@@ -16,6 +16,12 @@
     (all-uri-tests)))
 
 (defun all-uri-tests ()
+  ;; bug25523
+  (let ((s "https://foo.com/bar/"))
+    (test s (let ((*current-case-mode* :case-insensitive-upper))
+	      (net.uri:render-uri (net.uri:parse-uri s) nil))
+	  :test #'string=))  
+
   ;; Test random URIs can be parsed and are the same when printed
   (dolist (s (list
 	      "http://localhost:42398/pptest#asdfasdf"
@@ -208,19 +214,14 @@
 	       (net.uri:parse-uri "file:///tmp/test.nt"))
    :test #'uri=)
   
-  ;; bug17656
-  (dolist (bool (list nil t))
-    (setq net.uri::*render-include-slash-on-null-path* bool)
+  (let ((net.uri::*render-include-slash-on-null-path* t))
     (dolist (s '("http://www.franz.com"
 		 "http://www.franz.com/"
 		 "http://www.franz.com:/"
 		 "http://www.franz.com:80/"))
-      (test
-       (if* net.uri::*render-include-slash-on-null-path*
-	  then "http://www.franz.com/"
-	  else "http://www.franz.com")
-       (render-uri (net.uri:parse-uri s) nil)
-       :test #'string=)))
+      (test "http://www.franz.com/"
+	    (render-uri (net.uri:parse-uri s) nil)
+	    :test #'string=)))
   
   (test
    "urn:bar:foo"
@@ -330,20 +331,17 @@
   (more-uri-tests))
 
 (defun more-uri-tests ()
+  ;; Tests only work if this is nil:
+  (assert (null net.uri::*render-include-slash-on-null-path*))
   (let ((base-uri "http://a/b/c/d;p?q"))
     (dolist (x `(;; (relative-uri result base-uri compare-function)
-;;;; RFC Appendix C.1 (normal examples)
+;;;; RFC Appendix 5.4.1 (normal examples)
 		 ("g:h"           "g:h" 		  ,base-uri)
 		 ("g"             "http://a/b/c/g" 	  ,base-uri)
 		 ("./g"           "http://a/b/c/g" 	  ,base-uri)
 		 ("g/"            "http://a/b/c/g/" 	  ,base-uri)
 		 ("/g"            "http://a/g" 		  ,base-uri) 
 		 ("//g"           "http://g" 		  ,base-uri)
-;;; The following test was changed and is different the corresponding
-;;; example in appendix C of RFC 2396 because of the clarification of this
-;;; example given here:
-;;; http://www.apache.org/~fielding/uri/rev-2002/issues.html#003-relative-query
-;;; NOTE: RFC 3986 fixed the example.
 		 ("?y"            "http://a/b/c/d;p?y" 	  ,base-uri) 
 		 ("g?y"           "http://a/b/c/g?y" 	  ,base-uri)
 		 ("#s"            "http://a/b/c/d;p?q#s"  ,base-uri) 
@@ -352,7 +350,8 @@
 		 (";x"            "http://a/b/c/;x" 	  ,base-uri) 
 		 ("g;x"           "http://a/b/c/g;x" 	  ,base-uri) 
 		 ("g;x?y#s"       "http://a/b/c/g;x?y#s"  ,base-uri)
-		 ("."             "http://a/b/c/" 	  ,base-uri) 
+		 (""               "http://a/b/c/d;p?q"   ,base-uri)
+		 ("."             "http://a/b/c/" 	  ,base-uri)
 		 ("./"            "http://a/b/c/" 	  ,base-uri) 
 		 (".."            "http://a/b/" 	  ,base-uri) 
 		 ("../"           "http://a/b/" 	  ,base-uri)
@@ -360,16 +359,12 @@
 		 ("../.."         "http://a/" 		  ,base-uri) 
 		 ("../../"        "http://a/" 		  ,base-uri)
 		 ("../../g"       "http://a/g" 		  ,base-uri)
-;;;; RFC Appendix C.2 (abnormal examples)
-		 (""              "http://a/b/c/d;p?q" 	  ,base-uri) 
-;;;; RFC 2396 and 3986 differ on this block of 4:
-		 ;; these two return the RFC 3986 answer:
+
+;;;; RFC Appendix 5.4.2 (abnormal examples)
 		 ("../../../g"    "http://a/g"  	  ,base-uri)
 		 ("../../../../g" "http://a/g" 	          ,base-uri)
-		 ;; these two return the RFC 2396 answer:
-		 ("/./g"          "http://a/./g"   	  ,base-uri)
-		 ("/../g"         "http://a/../g"         ,base-uri)
-;;;; ...end differing examples
+		 ("/./g"          "http://a/g"   	  ,base-uri)
+		 ("/../g"         "http://a/g"            ,base-uri)
 		 ("g."            "http://a/b/c/g."       ,base-uri) 
 		 (".g"            "http://a/b/c/.g"       ,base-uri) 
 		 ("g.."           "http://a/b/c/g.."      ,base-uri)
@@ -387,20 +382,28 @@
 		 ("g#s/./x"       "http://a/b/c/g#s/./x"  ,base-uri)
 		 ("g#s/../x"      "http://a/b/c/g#s/../x" ,base-uri) 
 
+		 ;; for backward compatibility this is allowed:
+		 ;;   "http://a/b/c/g"
+		 ;; but we have always returned the correct result.
 		 ("http:g"        "http:g"                ,base-uri)
 
-		 ("foo/bar/baz.htm#foo"
-		  "http://a/b/foo/bar/baz.htm#foo"
+             ;;; added examples
+		 ("f/b/baz.htm#foo"
+		  "http://a/b/f/b/baz.htm#foo"
 		  "http://a/b/c.htm")
-		 ("foo/bar/baz.htm#foo"
-		  "http://a/b/foo/bar/baz.htm#foo"
+		 ("f/b/baz.htm#foo"
+		  "http://a/b/f/b/baz.htm#foo"
 		  "http://a/b/")
-		 ("foo/bar/baz.htm#foo"
-		  "http://a/foo/bar/baz.htm#foo"
+		 ("f/b/baz.htm#foo"
+		  "http://a/f/b/baz.htm#foo"
 		  "http://a/b")
-		 ("foo/bar;x;y/bam.htm"
-		  "http://a/b/c/foo/bar;x;y/bam.htm"
+		 ("f/b;x;y/bam.htm"
+		  "http://a/b/c/f/b;x;y/bam.htm"
 		  "http://a/b/c/")))
+      (format t ";; merge: ~15a ~18a = ~20a~%" (first x) (third x) (second x))
+      (test (second x)
+	    (render-uri (merge-uris (first x) (third x)) nil)
+	    :test #'string=)
       (test (intern-uri (second x))
 	    (intern-uri (merge-uris (intern-uri (first x))
 				    (intern-uri (third x))))
@@ -421,7 +424,7 @@
 		  "http://www.franz.com/foo?bar#baz" eq)
 		 ("http://WWW.FRANZ.COM" "http://www.franz.com" eq)
 		 ("http://www.FRANZ.com" "http://www.franz.com" eq)
-		 ("http://www.franz.com" "http://www.franz.com/" eq)
+		 ("http://www.franz.com" "http://www.franz.com" eq)
 		 (;; %72 is "r", %2f is "/", %3b is ";"
 		  "http://www.franz.com/ba%72%2f%3b;x;y;z/baz/"
 		  "http://www.franz.com/bar%2f%3b;x;y;z/baz/" eq)))

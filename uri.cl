@@ -8,7 +8,7 @@
 
 #+(version= 9 0)
 (sys:defpatch "uri" 7
-  "v7: more fixes for non-strict mode parsing;
+  "v7: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v6: fixes for non-strict mode parsing;
 v5: bring up to spec with RFCs 3986, 6874 and 8141;
 v4: handle no-authority URIs with `hdfs' scheme the same as `file';
@@ -20,7 +20,7 @@ v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
 
 #+(version= 10 0)
 (sys:defpatch "uri" 5
-  "v5: more fixes for non-strict mode parsing;
+  "v5: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v4: fixes for non-strict mode parsing;
 v3: bring up to spec with RFCs 3986, 6874 and 8141;
 v2: allow null query;
@@ -30,7 +30,7 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
 
 #+(version= 10 1)
 (sys:defpatch "uri" 3
-  "v3: more fixes for non-strict mode parsing;
+  "v3: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v2: fixes for non-strict mode parsing;
 v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
@@ -306,12 +306,17 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     (.uri-parsed-path uri)))
 
 (defmethod (setf uri-parsed-path) (path-list (uri uri))
-  (assert (and (consp path-list)
-	       (or (member (car path-list) '(:absolute :relative)
-			   :test #'eq))))
-  (setf (uri-path uri) (render-parsed-path path-list t))
-  (setf (.uri-parsed-path uri) path-list)
-  path-list)
+  (if* (null path-list)
+     then (setf (uri-path uri) nil)
+	  (setf (.uri-parsed-path uri) nil)
+	  path-list
+     else (when (not (and (consp path-list)
+			  (or (member (car path-list) '(:absolute :relative)
+				      :test #'eq))))
+	    (error "internal error: path-list is ~s." path-list))
+	  (setf (uri-path uri) (render-parsed-path path-list t))
+	  (setf (.uri-parsed-path uri) path-list)
+	  path-list))
 
 (defun uri-authority (uri)
   (when (uri-host uri)
@@ -1572,8 +1577,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   (excl::.parse-error "Couldn't parse uri: ~s." string))
 
 (defun parse-uri (thing &key (class 'uri)
-			     (escape nil escape-supplied)
-                             (canonicalize-schemes '(:http :https :ftp)))
+			     (escape nil escape-supplied))
   ;; Parse THING into a URI object, an instance of CLASS.
   ;;
   ;; If ESCAPE is non-nil or is not supplied, then decode percent-encoded
@@ -1581,10 +1585,6 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   ;; characters.  The exception to this is when those characters are
   ;; reserved for the component in which they appear, and in this case the
   ;; percent-encoded character stays encoded.
-  ;;
-  ;; CANONICALIZE-SCHEMES is either nil or a list of keywords naming
-  ;; schemes for which a lone path of "/" will be canonicalized away (and
-  ;; made nil).
 
   (when (uri-p thing) (return-from parse-uri thing))
   
@@ -1637,14 +1637,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 			(:ftp 21)
 			(:telnet 23)))
 	(setq port nil)))
-    (when (or (string= "" path)
-	      (and ;; we canonicalize away a reference to just /:
-	       scheme
-	       (member scheme canonicalize-schemes :test #'eq)
-	       (string= "/" path)
-	       ;; but only if the rest of the parse didn't see anything
-	       (null query)
-	       (null fragment)))
+    (when (= 0 (length path))
       (setq path nil))
     (when (and escape path)
       (setq path (percent-decode-string path *pchar-bitvector*)))
@@ -1753,8 +1746,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	  (when scheme
 	    (case *current-case-mode*
 	      ((:case-insensitive-upper :case-sensitive-upper)
-	       (string-downcase (symbol-name scheme))
-	       #'string-upcase)
+	       (string-downcase (symbol-name scheme)))
 	      ((:case-insensitive-lower :case-sensitive-lower)
 	       (symbol-name scheme))))
 	  (when scheme ":")
@@ -1878,12 +1870,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   (merge-uris (parse-uri uri) base place))
 
 (defmethod merge-uris ((uri uri) (base uri) &optional place)
-  ;; See ../doc/rfc2396.txt for info on the algorithm we use to merge
-  ;; URIs.
-  ;;
-  ;; This function *always* returns a *new* URI.
+  ;; When PLACE is nil, this function returns a new URI.
+  ;; When PLACE is non-nil, it is return.
   (tagbody
-;;;; step 2
     (when (and (null (uri-path uri))
 	       (null (uri-scheme uri))
 	       (null (uri-host uri))
@@ -1900,12 +1889,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     
     (setq uri (copy-uri uri :place place))
 
-;;;; step 3
     (when (uri-scheme uri) (go :done))
 
     (setf (uri-scheme uri) (uri-scheme base))
   
-;;;; step 4
     ;; if URI has a host, we're done
     (when (uri-host uri) (go :done))
     
@@ -1916,27 +1903,23 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     (setf (uri-userinfo uri) (uri-userinfo base))
     (setf (uri-port uri) (uri-port base))
     
-;;;; step 5
     (let ((p (uri-parsed-path uri)))
-      
-      ;; bug13133:
-      ;; The following form causes our implementation to be at odds with
-      ;; RFC 2396, however this is apparently what was intended by the
-      ;; authors of the RFC.  Specifically, (merge-uris "?y" "/foo")
-      ;; should return #<uri /foo?y> instead of #<uri ?y>, according to
-      ;; this:
-;;; http://www.apache.org/~fielding/uri/rev-2002/issues.html#003-relative-query
       (when (null p)
 	(setf (uri-path uri) (uri-path base))
 	(go :done))
       
       (when (and p (eq :absolute (car p)))
-	(when (equal '(:absolute "") p)
-	  ;; Canonicalize the way parsing does:
-	  (setf (uri-path uri) nil))
+	(if* (equal '(:absolute "") p)
+	   then ;; Canonicalize the way parsing does:
+		(setf (uri-path uri) nil)
+	 elseif (eq :absolute (first p))
+	   then ;; this also sets uri-path
+		(multiple-value-bind (new changed)
+		    (canonicalize-path-list p)
+		  (when changed
+		    (setf (uri-parsed-path uri) new))))
 	(go :done)))
     
-;;;; step 6
     (let* ((base-path
 	    (or (uri-parsed-path base)
 		;; needed because we canonicalize away a path of just `/':
@@ -1947,12 +1930,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	(error "Cannot merge ~a and ~a, since the latter is not absolute."
 	       uri base))
 
-      ;; steps 6a and 6b:
       (setq new-path-list
 	(append (butlast base-path)
 		(if* path then (cdr path) else '(""))))
 
-      ;; steps 6c and 6d:
       (let ((last (last new-path-list)))
 	(if* (atom (car last))
 	   then (when (string= "." (car last))
@@ -1965,7 +1946,6 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 					       then (string= a b)
 					       else nil))))
 
-      ;; steps 6e and 6f:
       (let ((npl (cdr new-path-list))
 	    index tmp fix-tail)
 	(setq fix-tail
@@ -2000,22 +1980,25 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	(setf (cdr new-path-list) npl)
 	(when fix-tail (setq new-path-list (nconc new-path-list '("")))))
 
-      ;; step 6g:
-      ;; don't complain if new-path-list starts with `..'.  See comment
-      ;; above about this step.
+      (when (eq :absolute (first new-path-list))
+	(multiple-value-bind (new changed)
+	    (canonicalize-path-list new-path-list)
+	  (when changed (setq new-path-list new))))
+      
+      ;; Also sets uri-path:
+      (setf (uri-parsed-path uri) new-path-list))
 
-      ;; step 6h:
-      (when (or (equal '(:absolute "") new-path-list)
-		(equal '(:absolute) new-path-list))
-	(setq new-path-list nil))
-      (setf (uri-path uri)
-	(render-parsed-path new-path-list
-			    ;; don't know, so have to assume:
-			    t)))
-
-;;;; step 7
    :done
     (return-from merge-uris uri)))
+
+(defun canonicalize-path-list (path-list &aux changed)
+  ;; Return two values: new version of PATH-LIST and an indicator if it was
+  ;; changed.  We are only called when (car path-list) is :absolute.
+  (while (or (equal "." (second path-list))
+	     (equal ".." (second path-list)))
+    (setf (cdr path-list) (cddr path-list))
+    (setq changed t))
+  (values path-list changed))
 
 (defmethod merge-uris ((urn urn) (base urn) &optional place)
   (if* place
