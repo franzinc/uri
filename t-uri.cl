@@ -16,6 +16,11 @@
     (all-uri-tests)))
 
 (defun all-uri-tests ()
+  ;; rfe15844
+  (let ((s ;; uses +, = and & all encoded:
+	 "http://franz.com/foo?val=a%2b%3d%26b+is+c"))
+    (test s (render-uri (parse-uri s) nil) :test #'string=))
+	 
   ;; bug25523
   (let ((s "https://foo.com/bar/"))
     (test s (let ((*current-case-mode* :case-insensitive-upper))
@@ -23,11 +28,9 @@
 	  :test #'string=))  
 
   ;; Test random URIs can be parsed and are the same when printed
-  (dolist (s (list
-	      "http://localhost:42398/pptest#asdfasdf"
-	      ;; IPvFuture:
-	      "http://[v6.fe80::a_en1]"
-	      ))
+  (dolist (s (list "http://localhost:42398/pptest#asdfasdf"
+		   ;; IPvFuture:
+		   "http://[v6.fe80::a_en1]"))
     (test s (render-uri (parse-uri s) nil)
 	  :test #'string=))
   
@@ -103,6 +106,9 @@
     (net.uri:parse-uri "/simple-form?text=%F3%D4%D2%CF"))
    :test #'string=)
   
+  (let ((s "/simple-form?text=%F3%D4%D2%CF"))
+    (test s (uri-to-string (string-to-uri s)) :test #'string=))
+  
   ;; bug18582
   (test "foo:bar"
 	(net.uri:uri-userinfo
@@ -120,11 +126,14 @@
 	(net.uri:uri-authority
 	 (net.uri:parse-uri "http://foo@localhost/"))
 	:test #'string=)
-  (test
-   "http://user:fooa@host:800/foo/bar/foo"
+  (test "http://user:fooa@host:800/foo/bar/foo"
    (princ-to-string
     (net.uri:parse-uri "http://user:foo%61@host:800/foo/bar/foo"))
    :test #'string=)
+  (test "http://user:fooa@host:800/foo/bar/foo"
+	(uri-to-string
+	 (string-to-uri "http://user:foo%61@host:800/foo/bar/foo"))
+	:test #'string=)
   (test
    "http://user@host:800/foo/bar/foo"
    (princ-to-string
@@ -135,6 +144,9 @@
    (princ-to-string
     (net.uri:parse-uri "http://user:foo%61@host/foo/bar/foo"))
    :test #'string=)
+  (test "http://user:fooa@host/foo/bar/foo"
+	(uri-to-string (string-to-uri "http://user:foo%61@host/foo/bar/foo"))
+	:test #'string=)
   (test
    "http://user@host/foo/bar/foo"
    (princ-to-string
@@ -146,6 +158,9 @@
 	(princ-to-string
 	 (net.uri:parse-uri
 	  "http://localhost/?x=%0Ax%20&y=1"))
+	:test #'string=)
+  (test "http://localhost/?x=%0Ax%20&y=1"
+	(uri-to-string (string-to-uri "http://localhost/?x=%0Ax%20&y=1"))
 	:test #'string=)
   
   ;; bug18153
@@ -435,7 +450,8 @@
 		     else 'uri=)))
 
 ;;;; parsing and equivalence tests
-    (test (parse-uri "http://foo+bar?baz=b&lob+bof")
+    ;; %26=&, which should not be decoded
+    (test (parse-uri "http://foo+bar?baz=b%26lob+bof")
 	  (parse-uri "http://foo+bar?baz=b%26lob+bof")
 	  :test 'uri=)
     (test (parse-uri "http://www.foo.com?")
@@ -444,12 +460,14 @@
     (test (parse-uri "http://www.foo.com/foo/bar?")
 	  (parse-uri (parse-uri "http://www.foo.com/foo/bar?"))
 	  :test 'uri=)
-    ;; RFC 3986 requires the %26 to be converted to a &
-    (test "baz=b&lob+bof"
+    ;; RFC 3986 requires the %26 to be converted to a &, but that is wrong.
+    ;; The interpretation should be left to the HTTP spec.
+    (test "baz=b%26lob+bof"
 	  (uri-query (parse-uri "http://foo+bar?baz=b%26lob+bof"))
 	  :test 'string=)
-    ;; RFC 3986 requires the %26/%3d to be converted to &/=
-    (test "baz=b&lob+bof="
+    ;; RFC 3986 requires the %26/%3d to be converted to &/=, but that is
+    ;; wrong.
+    (test "baz=b%26lob+bof%3d"
 	  (uri-query (parse-uri "http://foo+bar?baz=b%26lob+bof%3d"))
 	  :test 'string=)
     
@@ -510,8 +528,8 @@
 	      (setf (uri-parsed-path u) '(:absolute ("/bAr" "3") "baz"))
 	      (uri-path u))
 	    :test 'string=)
-    ;; RFC 3986 requires the = sign to be converted
-    (test "http://www.verada.com:8010/kapow?name=foo=bar%25"
+    ;; RFC 3986 requires the = sign to be converted, but that is wrong.
+    (test "http://www.verada.com:8010/kapow?name=foo%3Dbar%25"
 	    (format nil "~a"
 		    (parse-uri
 		     "http://www.verada.com:8010/kapow?name=foo%3Dbar%25"))

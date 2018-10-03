@@ -50,6 +50,11 @@ Changes to grammar:
 * Rule 54 updated from RFC 8141: added "." because examples in the RFC
   included it.
 
+* Rule 30 changed to: query = *( query-pchar / "/" / "?" )
+
+  Including "+", "=" and "&" in the query means that these characters
+  cannot be encoded for field values.  That is a very bad thing.
+
 *******************************************************************************
 01   URI           = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 02   URI-reference = URI / relative-ref
@@ -98,12 +103,14 @@ Changes to grammar:
 28   segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" )
                    ; non-zero-length segment without any colon ":"
 29   pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
-30   query         = *( pchar / "/" / "?" )
+30   query         = *( query-pchar / "/" / "?" )
 31   fragment      = *( pchar / "/" / "?" / "#" )
 32   pct-encoded   = "%" HEXDIG HEXDIG
 33   unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
 36   sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
                    / "*" / "+" / "," / ";" / "="
+37   query-pchar   = unreserved / pct-encoded / qsub-delims / ":" / "@"
+38   qsub-delims   = "!" / "$" / "'" / "(" / ")" / "*" / "," / ";"
 
 *******************************************************************************
 50   namestring    = assigned-name

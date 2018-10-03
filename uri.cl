@@ -7,8 +7,9 @@
 ;; See the file LICENSE for the full license governing this code.
 
 #+(version= 9 0)
-(sys:defpatch "uri" 7
-  "v7: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
+(sys:defpatch "uri" 8
+  "v8: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
+v7: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v6: fixes for non-strict mode parsing;
 v5: bring up to spec with RFCs 3986, 6874 and 8141;
 v4: handle no-authority URIs with `hdfs' scheme the same as `file';
@@ -19,8 +20,9 @@ v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :post-loadable t)
 
 #+(version= 10 0)
-(sys:defpatch "uri" 5
-  "v5: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
+(sys:defpatch "uri" 6
+  "v6: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
+v5: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v4: fixes for non-strict mode parsing;
 v3: bring up to spec with RFCs 3986, 6874 and 8141;
 v2: allow null query;
@@ -29,8 +31,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 3
-  "v3: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
+(sys:defpatch "uri" 4
+  "v4: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
+v3: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v2: fixes for non-strict mode parsing;
 v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
@@ -70,6 +73,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    #:enough-uri
    #:uri-parsed-path
    #:render-uri
+   #:string-to-uri
+   #:uri-to-string
 
    #:make-uri-space			; interning...
    #:uri-space
@@ -476,6 +481,31 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	     '(#\| #\^
 	       ;; Too many websites/tools use this in URLs
 	       #\space))))
+
+;;;;;;;;; HACK
+;; See discussion in rfe15844.  Decoding the query should not touch percent
+;; encodings of #\+, #\= and #\&, because those are interpreted by
+;; another specification (HTTP).
+
+(defparameter *decode-query-strict-chars*
+  (append *unreserved-chars*
+	  ;; Instead of *sub-delims-chars*, this (which is just like
+	  ;; *sub-delims-chars*, except for the commented out characters):
+	  '(#\! #\$ #\' #\( #\) #\* #\, #\;
+	    ;;#\& #\+ #\=
+	    )
+	  '(#\: #\@)))
+
+(defparameter *decode-query-bitvector-strict*
+    (make-char-bitvector *decode-query-strict-chars*))
+
+(defparameter *decode-query-bitvector-non-strict*
+    (make-char-bitvector
+     (append *decode-query-strict-chars*
+	     '(#\| #\^
+	       ;; Too many websites/tools use this in URLs
+	       #\space))))
+;;;;;;;;; ...HACK
 
 (defparameter *fragment-bitvector-strict*
     (make-char-bitvector *fragment-strict-chars*))
@@ -1576,23 +1606,20 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     
   (excl::.parse-error "Couldn't parse uri: ~s." string))
 
-(defun parse-uri (thing &key (class 'uri)
-			     (escape nil escape-supplied))
+(defun parse-uri (thing &key (class 'uri) (escape t))
   ;; Parse THING into a URI object, an instance of CLASS.
   ;;
-  ;; If ESCAPE is non-nil or is not supplied, then decode percent-encoded
-  ;; characters in places where they can legally appear, into the raw
-  ;; characters.  The exception to this is when those characters are
-  ;; reserved for the component in which they appear, and in this case the
-  ;; percent-encoded character stays encoded.
+  ;; If ESCAPE is non-nil, then decode percent-encoded characters in places
+  ;; where they can legally appear, into the raw characters.  The exception
+  ;; to this is when those characters are reserved for the component in
+  ;; which they appear, and in this case the percent-encoded character
+  ;; stays encoded.
 
   (when (uri-p thing) (return-from parse-uri thing))
   
   (multiple-value-bind (scheme host userinfo port path query fragment
 			pct-encoded ipv6 zone-id)
       (parse-uri-string-rfc3986 thing)
-
-    (when (not escape-supplied) (setq escape pct-encoded))
 
     (when scheme
       (setq scheme
@@ -1645,8 +1672,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
       (setq query
 	(percent-decode-string query
 			       (if* *strict-parse*
-				  then *query-bitvector-strict*
-				  else *query-bitvector-non-strict*))))
+				  then *decode-query-bitvector-strict*
+				  else *decode-query-bitvector-non-strict*))))
     (when (and escape fragment)
       (setq fragment
 	(percent-decode-string fragment
@@ -1665,7 +1692,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	      :path path
 	      :query query
 	      :fragment fragment
-	      :escaped escape)
+	      :escaped (when escape pct-encoded))
        else ;; do it the slow way:
 	    (make-instance class
 	      :scheme scheme
@@ -1675,7 +1702,91 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	      :path path
 	      :query query
 	      :fragment fragment
-	      :escaped escape))))
+	      :escaped (when escape pct-encoded)))))
+
+(defun string-to-uri (string)
+  ;; Parse STRING as a URI and either signal an error if it cannot be
+  ;; parsed or return the URI object.  This function differs from parse-uri
+  ;; in that the query is not decoded.  The knowledge of how to properly
+  ;; decode the query is outside the bounds of RFC 3986.
+  (multiple-value-bind (scheme host userinfo port path query fragment
+			pct-encoded ;; non-nil if any %xx in any slot
+			ipv6 zone-id)
+      (parse-uri-string-rfc3986 string)
+
+    (when scheme
+      (setq scheme
+	(cond
+	 ;; Ordered from most common to least, and the set of known schemes
+	 ;; hardwired for efficiency.
+	 ((string-equal scheme "https") :https)
+	 ((string-equal scheme "http") :http)
+	 ((string-equal scheme "ftp") :ftp)
+	 ((string-equal scheme "file") :file)
+	 ((string-equal scheme "urn") :urn)
+	 ((string-equal scheme "telnet") :telnet)
+	 (t
+	  (intern (funcall
+		   (case *current-case-mode*
+		     ((:case-insensitive-upper :case-sensitive-upper)
+		      #'string-upcase)
+		     ((:case-insensitive-lower :case-sensitive-lower)
+		      #'string-downcase))
+		   scheme)
+		  (load-time-value (find-package :keyword)))))))
+    
+    (when (and scheme (eq :urn scheme))
+      (return-from string-to-uri
+	;; NOTE: for now, we treat URNs like parse-uri, and do no
+	;; decoding.
+	(make-instance 'urn :scheme scheme :nid host :nss path
+		       :query query :fragment fragment
+		       :r-component userinfo)))
+
+    (when (and pct-encoded host)
+      (setq host (percent-decode-string host *reg-name-bitvector*)))
+
+    (when (and pct-encoded userinfo)
+      (setq userinfo (percent-decode-string userinfo *userinfo-bitvector*)))
+    
+    (when port
+      (when (not (numberp port)) (error "port is not a number: ~s." port))
+      (when (not (plusp port))
+	(error "port is not a positive integer: ~d." port))
+      ;; Use `eql' instead of `=' so that scheme's other than the small set
+      ;; below are possible.
+      (when (eql port (case scheme
+			(:http 80)
+			(:https 443)
+			(:ftp 21)
+			(:telnet 23)))
+	(setq port nil)))
+
+    (when (= 0 (length path))
+      (setq path nil))
+    (when (and pct-encoded path)
+      (setq path (percent-decode-string path *pchar-bitvector*)))
+
+    ;; query is left alone
+
+    (when (and pct-encoded fragment)
+      (setq fragment
+	(percent-decode-string fragment
+			       (if* *strict-parse*
+				  then *fragment-bitvector-strict*
+				  else *fragment-bitvector-non-strict*))))
+
+    (make-instance 'uri
+      :scheme scheme
+      :host host
+      :ipv6 ipv6
+      :zone-id zone-id
+      :userinfo userinfo
+      :port port
+      :path path
+      :query query
+      :fragment fragment
+      :escaped pct-encoded)))
 
 (defun parse-path (path-string escape)
   (do* ((xpath-list (delimited-string-to-list path-string #\/))
@@ -1796,6 +1907,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 
 (defmethod render-uri ((urn urn) stream
 		       &aux (*print-pretty* nil))
+  ;; This doesn't do encoding because no decoding is done for URNs when
+  ;; they are parsed.
   (when (null (uri-string urn))
     (setf (uri-string urn)
       (let ((nid (urn-nid urn))
@@ -1813,6 +1926,71 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   (if* stream
      then (write-string (uri-string urn) stream)
      else (uri-string urn)))
+
+(defmethod uri-to-string ((uri uri)
+			  &aux (encode (uri-escaped uri))
+			       (*print-pretty* nil)
+			       res)
+  (declare (optimize (safety 0)))
+  (when (null (setq res (uri-string uri)))
+    (setf (uri-string uri)
+      (let ((scheme (uri-scheme uri))
+	    (host (.uri-host uri))
+	    (ipv6 (.uri-ipv6 uri))
+	    zone-id ;; don't compute until needed
+	    (userinfo (uri-userinfo uri))
+	    (port (uri-port uri))
+	    (parsed-path (uri-parsed-path uri))
+	    (query (uri-query uri))
+	    (fragment (uri-fragment uri)))
+	(setq res
+	  (string+
+	   (when scheme
+	     (case *current-case-mode*
+	       ((:case-insensitive-upper :case-sensitive-upper)
+		(string-downcase (symbol-name scheme)))
+	       ((:case-insensitive-lower :case-sensitive-lower)
+		(symbol-name scheme))))
+	   (when scheme ":")
+	   (when (or host ipv6 (eq :file scheme) (eq :hdfs scheme))
+	     "//")
+	   (when userinfo
+	     (if* encode
+		then (percent-encode-string userinfo *userinfo-bitvector*)
+		else userinfo))
+	   (when userinfo "@")
+	   (if* ipv6
+	      then (if* (setq zone-id (.uri-zone-id uri))
+		      then (string+ "[" ipv6 "%25" zone-id "]")
+		      else (string+ "[" ipv6 "]"))
+	    elseif host
+	      then (if* encode
+		      then (percent-encode-string host *reg-name-bitvector*)
+		      else host))
+	   (when port ":")
+	   (when port port)
+	   (if* parsed-path
+	      then (render-parsed-path parsed-path encode)
+	    elseif (and *render-include-slash-on-null-path*
+			#|no path but:|# scheme host)
+	      then "/")
+	   (when query "?")
+	   query
+	   (when fragment "#")
+	   (when fragment
+	     (if* encode
+		then (percent-encode-string
+		      fragment
+		      (if* *strict-parse*
+			 then *fragment-bitvector-strict*
+			 else *fragment-bitvector-non-strict*))
+		else fragment)))))))
+  res)
+
+(defmethod uri-to-string ((urn urn))
+  ;; We can use render-uri here because no decoding/encoding happens for
+  ;; URNs.
+  (render-uri urn nil))
 
 (defun render-parsed-path (path-list escape)
   (do* ((res '())
