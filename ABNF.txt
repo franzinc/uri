@@ -55,11 +55,18 @@ Changes to grammar:
   Including "+", "=" and "&" in the query means that these characters
   cannot be encoded for field values.  That is a very bad thing.
 
+* Rule 04 updated to add this:
+     		   / "//" path-absolute
+
+  otherwise, the grammar cannot parse, for example,
+  `file:///etc/hosts', since the authority cannot be null.
+
 *******************************************************************************
 01   URI           = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 02   URI-reference = URI / relative-ref
 03   absolute-URI  = scheme ":" hier-part [ "?" query ]
 04   hier-part     = "//" authority path-abempty
+     		   / "//" path-absolute
 		   / path-absolute
 		   / path-rootless
 		   / path-empty
@@ -119,7 +126,7 @@ Changes to grammar:
 51   assigned-name = "urn" ":" NID ":" NSS
 52   NID           = (alphanum) 0*30(ldh) (alphanum)
 53   ldh           = alphanum / "-"
-54a  NSS           = pchar *(pchar / "/" )
+54   NSS           = pchar *(pchar / "/" )
 55   rq-components = [ "?+" r-component ]
                      [ "?=" q-component ]
 56   r-component   = pchar *( pchar / "/" / "?" )

@@ -7,8 +7,9 @@
 ;; See the file LICENSE for the full license governing this code.
 
 #+(version= 9 0)
-(sys:defpatch "uri" 8
-  "v8: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
+(sys:defpatch "uri" 9
+  "v9: fix misc parser issues;
+v8: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v7: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v6: fixes for non-strict mode parsing;
 v5: bring up to spec with RFCs 3986, 6874 and 8141;
@@ -20,8 +21,9 @@ v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :post-loadable t)
 
 #+(version= 10 0)
-(sys:defpatch "uri" 6
-  "v6: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
+(sys:defpatch "uri" 7
+  "v7: fix misc parser issues;
+v6: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v5: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v4: fixes for non-strict mode parsing;
 v3: bring up to spec with RFCs 3986, 6874 and 8141;
@@ -31,8 +33,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 4
-  "v4: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
+(sys:defpatch "uri" 5
+  "v5: fix misc parser issues;
+v4: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v3: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v2: fixes for non-strict mode parsing;
 v1: bring up to spec with RFCs 3986, 6874 and 8141."
@@ -784,11 +787,6 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	 else ;; Something matched, first index that didn't:
 	      (return i))))))
 
-(defun http-or-ftp-p (string start end)
-  (declare (optimize (safety 0)))
-  (or (looking-at "http" string start end)
-      (looking-at "ftp" string start end)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; A note about parser naming conventions.
 ;; There are two types of functions, where <name> comes from the LHS
@@ -808,34 +806,37 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defun state-uri (string start end
 		  &aux i scheme userinfo host port path query fragment
 		       nid nss q-component f-component r-component i2
-		       colon)
+		       colon urn-scheme file-scheme)
   ;; rule 01: URI = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
   ;; --TERMINAL--
   ;; values: i scheme userinfo host port path query fragment
   (if* (and (multiple-value-setq (i scheme) (state-scheme string start end))
 	    (setq colon (looking-at #\: string i end))
-	    (http-or-ftp-p string start end))
-     then (when (multiple-value-setq (i userinfo host port path)
-		  (state-hier-part string (1+ i) end))
-	    (when (at-end-p i end)
-	      (return-from state-uri
-		(values i scheme userinfo host port path)))
+	    (not (setq urn-scheme (looking-at "urn" string start end t)))
+	    (not (setq file-scheme (looking-at "file" string start end t)))
+	    (multiple-value-setq (i2 userinfo host port path)
+	      (state-hier-part string (1+ i) end)))
+     then ;; Have hier-part...
+	  (setq i i2)
+	  (when (at-end-p i end)
+	    (return-from state-uri
+	      (values i scheme userinfo host port path)))
 	   
-	    (when (looking-at #\? string i end)
-	      (if* (multiple-value-setq (i2 query)
-		     (state-query string (incf i) end))
-		 then (setq i i2)
-		 else (setq query #.*uri-null-marker*)))
+	  (when (looking-at #\? string i end)
+	    (if* (multiple-value-setq (i2 query)
+		   (state-query string (incf i) end))
+	       then (setq i i2)
+	       else (setq query #.*uri-null-marker*)))
 		   
-	    (when (looking-at #\# string i end)
-	      (if* (multiple-value-setq (i2 fragment)
-		     (state-fragment string (incf i) end))
-		 then (setq i i2)
-		 else (setq fragment #.*uri-null-marker*)))
+	  (when (looking-at #\# string i end)
+	    (if* (multiple-value-setq (i2 fragment)
+		   (state-fragment string (incf i) end))
+	       then (setq i i2)
+	       else (setq fragment #.*uri-null-marker*)))
 
-	    (when (at-end-p i end)
-	      (values i scheme userinfo host port path query fragment)))
-   elseif (and scheme colon (looking-at "urn" string start end t))
+	  (when (at-end-p i end)
+	    (values i scheme userinfo host port path query fragment))
+   elseif urn-scheme
      then ;; values: i "urn" nid r-component nil nss q-component f-component
 	  (when (multiple-value-setq (i nid nss q-component f-component
 				      r-component)
@@ -849,16 +850,16 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		    q-component		;query
 		    f-component		;fragment
 		    ))
-   elseif (and scheme colon
-	       ;; don't clobber `i', may be needed below
-	       (multiple-value-setq (i2 path)
-		 (state-uri-file string (1+ i) end)))
-     then (values i2 scheme nil nil nil path)
+   elseif (and file-scheme
+	       (multiple-value-setq (i path)
+		 (state-uri-file string colon end)))
+     then (values i scheme nil nil nil path)
    elseif (and scheme colon)
      then ;; Something like "mailto:foo@bar.com".  Put the
 	  ;; the non-scheme part into the path
 	  (values end scheme nil nil nil (xsubseq colon end))))
 
+;; called by parse-uri-string-rfc3986
 (defun state-uri-reference (string start end
 			    &aux i scheme userinfo host port path query
 				 fragment)
@@ -872,29 +873,29 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	    (state-relative-ref string start end))
      then (values i nil userinfo host port path query fragment)))
 
+;; called by parse-uri-string-rfc3986
 (defun state-absolute-uri (string start end
 			   &aux i scheme userinfo host port path query i2
-				colon)
+				colon urn-scheme file-scheme)
   ;; rule 03: absolute-URI  = scheme ":" hier-part [ "?" query ]
   ;; --TERMINAL--
   ;; values: i scheme userinfo host port path query
   (if* (and (multiple-value-setq (i scheme) (state-scheme string start end))
 	    (setq colon (looking-at #\: string i end))
-	    (http-or-ftp-p string start end))
-     then (when (and (multiple-value-setq (i scheme)
-		       (state-scheme string start end))
-		     (looking-at #\: string i end)
-		     (multiple-value-setq (i userinfo host port path)
-		       (state-hier-part string (incf i) end)))
-	    ;; so far: scheme + ":" + hier-part
-	    (if* (at-end-p i end)
-	       then (values i scheme userinfo host port path)
-	     elseif (and (looking-at #\? string i end)
-			 (multiple-value-setq (i query)
-			   (state-query string (incf i) end))
-			 (at-end-p i end))
-	       then (values i scheme userinfo host port path query)))
-   elseif (and scheme colon (looking-at "urn" string start end t))
+	    (not (setq urn-scheme (looking-at "urn" string start end t)))
+	    (not (setq file-scheme (looking-at "file" string start end t)))
+	    (multiple-value-setq (i2 userinfo host port path)
+	      (state-hier-part string colon end)))
+     then ;; so far: scheme + ":" + hier-part
+	  (setq i i2)
+	  (if* (at-end-p i end)
+	     then (values i scheme userinfo host port path)
+	   elseif (and (looking-at #\? string i end)
+		       (multiple-value-setq (i query)
+			 (state-query string (incf i) end))
+		       (at-end-p i end))
+	     then (values i scheme userinfo host port path query))
+   elseif urn-scheme
      then ;; values: i "urn" nid r-component nil nss q-component f-component
 	  (multiple-value-bind (i3 nid nss q-component f-component r-component)
 	      (state-urn-namestring string (incf i) end)
@@ -908,29 +909,33 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		      q-component	;query
 		      f-component	;fragment
 		      )))
-   elseif (and scheme colon
-	       ;; don't clobber `i', may be needed below
-	       (multiple-value-setq (i2 path)
-		 (state-uri-file string (1+ i) end)))
-     then (values i2 scheme nil nil nil path)
+   elseif (and file-scheme
+	       (multiple-value-setq (i path)
+		 (state-uri-file string colon end)))
+     then (values i scheme nil nil nil path)
    elseif (and scheme colon)
      then  ;; Something like "mailto:foo@bar.com".  Put the
 	  ;; the non-scheme part into the path
 	  (values end scheme nil nil nil (xsubseq colon end))))
        
-(defun state-hier-part (string start end &aux (i start) userinfo host port
+(defun state-hier-part (string start end &aux i userinfo host port
 					      path i2)
   ;; rule 04: hier-part = "//" authority path-abempty
+  ;;                    / "//" path-absolute            ***NEW***
   ;;                    / path-absolute
   ;;                    / path-rootless
   ;;                    / path-empty
   ;; values: i userinfo host port path
-  (if* (and (setq i (looking-at "//" string i end))
+  (if* (and (setq i (looking-at "//" string start end))
 	    (multiple-value-setq (i userinfo host port)
 	      (state-authority string i end)))
      then (if* (multiple-value-setq (i2 path) (state-path-abempty string i end))
 	     then (values i2 userinfo host port path)
 	     else (values i userinfo host port))
+   elseif (and (setq i (looking-at "//" string start end))
+	       (multiple-value-setq (i path)
+		 (state-path-absolute string i end)))
+     then (values i nil nil nil path)
    elseif (or
 	   (multiple-value-setq (i path) (state-path-absolute string start end))
 	   (multiple-value-setq (i path) (state-path-rootless string start end))
@@ -1311,7 +1316,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   ;; values: i path
   (when (setq i (scan-pchar string i end))
     (while (and (looking-at #\/ string i end)
-		(setq i2 (scan-pchar string (1+ i) end)))
+		;; The pchar after the slash is optional
+		(setq i2 (or (scan-pchar string (1+ i) end)
+			     (1+ i))))
       (setq i i2))
     (values i (xsubseq start i))))
 
@@ -2452,7 +2459,6 @@ Executes the forms once for each uri with var bound to the current uri"
   #+ignore (trace val)
   (trace looking-at)
   (trace scan-forward)
-  (trace http-or-ftp-p)
 
   (trace state-uri)
   (trace state-uri-reference)

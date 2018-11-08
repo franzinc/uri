@@ -92,6 +92,9 @@
 	(net.uri:uri-path
 	 (net.uri:parse-uri "mailto:support@franz.com"))
 	:test #'string=)
+  ;; bug25618
+  (test "test" (net.uri:uri-host (net.uri:parse-uri "http://test#"))
+	:test #'string=)
   ;; bug19680
   (test
    "tag:govshare.info,2005:rdf/census/"
