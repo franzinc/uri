@@ -1,14 +1,16 @@
 ;; -*- mode: common-lisp; package: net.uri -*-
-;; Support for URIs (including URNs) in Allegro.
+;; URI/IRI/URN support in Allegro.
 ;; For general URI information see RFC 3986.
+;; For general IRI information see RFC 3987.
 ;; For general URN information see RFC 8141.
 ;; For IPv6 changes see RFC 6874.
 ;;
 ;; See the file LICENSE for the full license governing this code.
 
 #+(version= 9 0)
-(sys:defpatch "uri" 9
-  "v9: fix misc parser issues;
+(sys:defpatch "uri" 10
+  "v10: add IRI support;
+v9: fix misc parser issues;
 v8: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v7: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v6: fixes for non-strict mode parsing;
@@ -21,8 +23,9 @@ v1: don't normalize away a null fragment, on merge remove leading `.' and `..'."
   :post-loadable t)
 
 #+(version= 10 0)
-(sys:defpatch "uri" 7
-  "v7: fix misc parser issues;
+(sys:defpatch "uri" 8
+  "v8: add IRI support;
+v7: fix misc parser issues;
 v6: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v5: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v4: fixes for non-strict mode parsing;
@@ -33,8 +36,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 5
-  "v5: fix misc parser issues;
+(sys:defpatch "uri" 6
+  "v6: add IRI support;
+v5: fix misc parser issues;
 v4: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v3: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
 v2: fixes for non-strict mode parsing;
@@ -47,8 +51,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defpackage :net.uri
   (:use #:common-lisp #:excl #:util.string)
   (:export
-   #:uri				; the type and a function
+   #:uri				; class
    #:uri-p
+   #:iri				; subclass of uri
+   #:iri-p
    #:copy-uri
 
    #:uri-scheme				; and slots
@@ -78,7 +84,11 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    #:render-uri
    #:string-to-uri
    #:uri-to-string
-
+   #:string-to-iri
+   #:iri-to-string
+   #:parse-uri-string-rfc3986
+   #:parse-iri-string-rfc3987
+   
    #:make-uri-space			; interning...
    #:uri-space
    #:uri=
@@ -141,6 +151,28 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     :accessor .uri-parsed-path)
    (hashcode ;; cached sxhash, so we don't have to compute it more than once
     :initarg :hashcode :initform nil :accessor uri-hashcode)))
+
+;; IRI support:
+;; - The grammar for IRIs is identical to that of URIs, except the allowed
+;;   character set for URIs is limited to ASCII, while IRIs characters can
+;;   be from the sequence of characters from the Universal Character Set
+;;   (Unicode/ISO 10646).
+;; - The actual grammar differences are:
+;;   - `unreserved' is now `iunreserved', which adds the alternation case
+;;     `ucschar' (see ucscharp below).
+;;   - `query' is now `iquery', which adds the alternation case
+;;     `iprivate' (see iprivatep below).
+;; - The IRI parser, string-to-iri, uses the URI parser, but it binds
+;;   .iri-mode. to T, which changes how character validation is done.  In
+;;   IRI mode, ucscharp and iprivatep are used in the appropriate places.
+;;
+;; See the comments for make-char-bitvector for more details.
+
+(defclass iri (uri) ())
+
+(defvar .iri-mode.
+    ;; Bound to T when we are parsing in IRI mode
+    nil)
 
 (defmethod uri-host ((uri uri))
   ;; Return the computed host for URI.  It is the value which could be used
@@ -262,6 +294,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defmethod uri-p ((thing uri)) t)
 (defmethod uri-p ((thing t)) nil)
 
+(defmethod iri-p ((thing iri)) t)
+(defmethod iri-p ((thing t)) nil)
+
 (defun copy-uri (uri
 		 &key place
 		      (scheme (when uri (uri-scheme uri)))
@@ -359,8 +394,18 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 
 (eval-when (compile eval)
   ;; The size of bit vectors are defined to check for characters in the
-  ;; range 0 to one less than this value.
-  (defparameter +uri-bit-vector-size+ 127))
+  ;; range 0 to 126 (~).  We use location 0 and 1, which are never set by
+  ;; any generated character list, as boolean.
+  (defparameter +uri-bit-vector-size+ 127)
+  
+  ;; The is the index at which we store the boolean: does this bitvector
+  ;; allow `ucschar' (from the grammar)?
+  (defparameter +bitvector-index-ucschar+  0)
+  
+  ;; The is the index at which we store the boolean: does this bitvector
+  ;; allow `iprivate' (from the grammar)?
+  (defparameter +bitvector-index-iprivate+ 1)
+  )
 
 (eval-when (compile eval)
 
@@ -394,15 +439,29 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 )
 
 (eval-when (compile eval load)
-(defun make-char-bitvector (chars &key except)
+(defun make-char-bitvector (chars &key except iri)
   ;; Return a bitvector which has a 1 for each character represented in
   ;; CHARS, where the index is the char-code of the character.  If EXCEPT
   ;; is non-nil, it should be a list of characters to exclude.
+  ;;
+  ;; If IRI is non-nil, it should be either :ucschar or :iprivate.
+  ;; Since the first two bits of the bitvector returned by this function
+  ;; are unused (those characters are invalid for URIs and IRIs), we use
+  ;; those bits for IRI validation.  During IRI character validation,
+  ;; characters outside the ASCII range are validated with either ucscharp
+  ;; or iprivatep.  IRI mode is indicated by .iri-mode. having a non-nil
+  ;; value.
   (do* ((a (make-array #.+uri-bit-vector-size+
 		       :element-type 'bit :initial-element 0))
 	(chars chars (cdr chars))
 	(c (car chars) (car chars)))
-      ((null chars) a)
+      ((null chars)
+       (when iri
+	 ;; set the booleans for this bitvector, used in .looking-at
+	 (ecase iri
+	   (:ucschar (setf (sbit a #.+bitvector-index-ucschar+) 1))
+	   (:iprivate (setf (sbit a #.+bitvector-index-iprivate+) 1))))
+       a)
     (if* (and except (member c except :test #'eq))
        thenret
        else (setf (sbit a (char-code c)) 1))))
@@ -457,33 +516,39 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defparameter *alphanum-bitvector*   (make-char-bitvector *alphanum-chars*))
 (defparameter *alphanum+-bitvector*  (make-char-bitvector *alphanum+-chars*))
 (defparameter *hexdig-bitvector*     (make-char-bitvector *hexdig-chars*))
-(defparameter *pchar-bitvector*      (make-char-bitvector *pchar-chars*))
-(defparameter *urn-nss-bitvector*    (make-char-bitvector *urn-nss-chars*))
-(defparameter *unreserved-bitvector* (make-char-bitvector *unreserved-chars*))
+(defparameter *pchar-bitvector*      (make-char-bitvector *pchar-chars*
+							  :iri :ucschar))
+(defparameter *urn-nss-bitvector*    (make-char-bitvector *urn-nss-chars*
+							  :iri :ucschar))
+(defparameter *unreserved-bitvector* (make-char-bitvector *unreserved-chars*
+							  :iri :ucschar))
 
 ;; used in pathname to URI conversion:
-(defparameter *pchar/-bitvector*    (make-char-bitvector *pchar/-chars*))
+(defparameter *pchar/-bitvector*     (make-char-bitvector *pchar/-chars*
+							  :iri :ucschar))
 
 (defparameter *userinfo-bitvector*
     (make-char-bitvector
-     (append *unreserved-chars* *sub-delims-chars* '(#\:))))
+     (append *unreserved-chars* *sub-delims-chars* '(#\:))
+     :iri :ucschar))
 
 (defparameter *reg-name-bitvector*
-    (make-char-bitvector (append *unreserved-chars* *sub-delims-chars*)))
+    (make-char-bitvector (append *unreserved-chars* *sub-delims-chars*)
+			 :iri :ucschar))
 
 (defparameter *scheme-bitvector*
-    (make-char-bitvector
-     (append *alpha-chars* *digit-chars* '(#\+ #\- #\.))))
+    (make-char-bitvector (append *alpha-chars* *digit-chars* '(#\+ #\- #\.))))
 
 (defparameter *query-bitvector-strict*
-    (make-char-bitvector *query-strict-chars*))
+    (make-char-bitvector *query-strict-chars*
+			 :iri :iprivate))
 
 (defparameter *query-bitvector-non-strict*
-    (make-char-bitvector
-     (append *query-strict-chars*
-	     '(#\| #\^
-	       ;; Too many websites/tools use this in URLs
-	       #\space))))
+    (make-char-bitvector (append *query-strict-chars*
+				 '(#\| #\^
+				   ;; Too many websites/tools use this in URLs
+				   #\space))
+			 :iri :iprivate))
 
 ;;;;;;;;; HACK
 ;; See discussion in rfe15844.  Decoding the query should not touch percent
@@ -500,32 +565,38 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	  '(#\: #\@)))
 
 (defparameter *decode-query-bitvector-strict*
-    (make-char-bitvector *decode-query-strict-chars*))
+    (make-char-bitvector *decode-query-strict-chars* :iri :iprivate))
 
 (defparameter *decode-query-bitvector-non-strict*
     (make-char-bitvector
      (append *decode-query-strict-chars*
 	     '(#\| #\^
 	       ;; Too many websites/tools use this in URLs
-	       #\space))))
+	       #\space))
+     :iri :iprivate))
 ;;;;;;;;; ...HACK
 
 (defparameter *fragment-bitvector-strict*
-    (make-char-bitvector *fragment-strict-chars*))
+    (make-char-bitvector *fragment-strict-chars* :iri :ucschar))
 
 (defparameter *fragment-bitvector-non-strict*
     (make-char-bitvector
      (append *fragment-strict-chars*
 	     '(#\#
 	       ;; Too many websites/tools use these in URLs
-	       #\space #\|))))
+	       #\space #\|))
+     :iri :ucschar))
 
 (defparameter *segment-nz-nc-bitvector*
-    (make-char-bitvector *segment-nz-nc-chars*))
+    (make-char-bitvector *segment-nz-nc-chars* :iri :ucschar))
 
-(defparameter *urn-query-bitvector* (make-char-bitvector *urn-query-chars*))
+(defparameter *urn-query-bitvector*
+    ;; Not sure which to use, :ucschar or :iprivate.  The universe will
+    ;; probably end before anyone figures it out.
+    (make-char-bitvector *urn-query-chars* :iri :iprivate))
 
-(defparameter *ipvfuture-bitvector* (make-char-bitvector *ipvfuture-chars*))
+(defparameter *ipvfuture-bitvector*
+    (make-char-bitvector *ipvfuture-chars* :iri :ucschar))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -573,6 +644,157 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		      (setf (schar new-string (incf new-i)) ch)
 		      (setf (schar new-string (incf new-i)) ch2)))
        else (setf (schar new-string new-i) ch))))
+
+;; This is experimental work in progress.
+#+ignore
+(defun percent-decode-utf8-string (string allowed-bitvector)
+  ;; like percent-decode-string, but handle UTF-8 encoded sequences
+;;;; chars 0..127 use allowed-bitvector
+;;;; chars  > 127 use RFC 3629 grammar
+  (do* ((i 0 (1+ i))
+	(max (length string))
+	(new-string (make-string max))
+	(new-i 0 (1+ new-i))
+	ch ch2 chc chc2
+	(state :start)
+	(vec (make-array 4 :element-type '(unsigned-byte 8)))
+	(temps (make-string 1 :element-type 'character))
+	(veci 0))
+      ((= i max)
+       (excl::.primcall 'sys::shrink-svector new-string new-i)
+       new-string)
+    (declare (fixnum i max new-i veci)
+	     (type (simple-array (unsigned-byte 8) (4)) vec)
+	     (dynamic-extent vec))
+    (cond
+     ((char= #\% (setq ch (schar string i)))
+      (when (> (+ i 3) max)
+	(excl::.parse-error
+	 "Unsyntactic percent encoding at ~d in ~s." i string))
+      (setq ch (schar string (incf i)))
+      (setq ch2 (schar string (incf i)))
+      (when (not (and (setq chc (digit-char-p ch 16))
+		      (setq chc2 (digit-char-p ch2 16))))
+	(excl::.parse-error
+	 "Non-hexidecimal digits after % at ~d in ~s."
+	 (- i 2) string))
+      (let ((cc (the fixnum
+		  (+ (the fixnum (* 16 (the fixnum chc)))
+		     (the fixnum chc2)))))
+	(declare (fixnum cc))
+	(cond
+	 ((<= cc #.+uri-bit-vector-size+)
+	  (if* (char-included-p allowed-bitvector cc)
+	     then ;; OK to convert
+		  (setf (schar new-string new-i)
+		    (code-char cc))
+	     else ;; leave percent encoded
+		  (setf (schar new-string new-i) #\%)
+		  (setf (schar new-string (incf new-i)) ch)
+		  (setf (schar new-string (incf new-i)) ch2)))
+	 (t
+	  ;; check for valid UTF-8 encoding (from RFC 2234):
+;;;; UTF8-octets = *( UTF8-char )
+;;;; UTF8-char   = UTF8-1 / UTF8-2 / UTF8-3 / UTF8-4
+;;;; UTF8-1      = %x00-7F
+;;;; UTF8-2      = %xC2-DF UTF8-tail
+;;;; UTF8-3      = %xE0 %xA0-BF UTF8-tail / %xE1-EC 2( UTF8-tail ) /
+;;;;               %xED %x80-9F UTF8-tail / %xEE-EF 2( UTF8-tail )
+;;;; UTF8-4      = %xF0 %x90-BF 2( UTF8-tail ) / %xF1-F3 3( UTF8-tail ) /
+;;;;               %xF4 %x80-8F 2( UTF8-tail )
+;;;; UTF8-tail   = %x80-BF
+	  ;; We have a little FSM here.  `state' can be one of:
+	  ;;  :start      :: looking for markers for UTF8-{2,3,4}
+	  ;;  :utf8-3a    :: have UTF8-3, read %E0, look for %xA0-BF 
+	  ;;  :utf8-3b    :: have UTF8-3, read %ED, look for %x80-9F
+	  ;;  :utf8-4a    :: have UTF8-4, read %F0, look for %x90-BF
+	  ;;  :utf8-4b    :: have UTF8-4, read %F4, look for %x80-8F
+	  ;;  :utf8-tail3 :: look for 3( UTF8-tail )
+	  ;;  :utf8-tail2 :: look for 2( UTF8-tail )
+	  ;;  :utf8-tail1 :: look for 1( UTF8-tail )
+	  (case state
+	    (:start
+;;;; UTF8-2
+	     (if* (<= #xC2 cc #xDF)
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-tail1)
+;;;; UTF8-3
+	      elseif (= #xE0 cc)
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-3a)
+	      elseif (or (<= #xE1 cc #xEC)
+			 (<= #xEE cc #xEF))
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-tail2)
+	      elseif (= #xED cc)
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-3b)
+;;;; UTF8-4
+	      elseif (= #xF0 cc)
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-4a)
+	      elseif (<= #xF1 cc #xF3)
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-tail3)
+	      elseif (= #xF4 cc)
+		then (setf (aref vec 0) cc)
+		     (setq veci 1)
+		     (setq state :utf8-4b)
+		else (excl::.parse-error
+;;;;TODO:
+		      "invalid UTF-8 encoding...FIXME")))
+	    (:utf8-3a
+	     (if* (<= #xA0 cc #xBF)
+		then (setf (aref vec veci) cc)
+		     (incf veci)
+		     (setq state :utf8-tail1)
+		else (error "invalid UTF8-3 2nd byte: ~x" cc)))
+	    (:utf8-3b
+	     (if* (<= #x80 cc #x9F)
+		then (setf (aref vec veci) cc)
+		     (incf veci)
+		     (setq state :utf8-tail3)
+		else (error "invalid UTF8-3 2nd byte: ~x" cc)))
+	    (:utf8-4a
+	     (if* (<= #x90 cc #xBF)
+		then (setf (aref vec veci) cc)
+		     (incf veci)
+		     (setq state :utf8-tail2)
+		else (error "invalid UTF8-4 2nd byte: ~x" cc)))
+	    (:utf8-4b
+	     (if* (<= #x80 cc #x8F)
+		then (setf (aref vec veci) cc)
+		     (incf veci)
+		     (setq state :utf8-tail2)
+		else (error "invalid UTF8-4 2nd byte: ~x" cc)))
+	    (:utf8-tail3
+	     (if* (<= #x80 cc #xBF)
+		then (setf (aref vec veci) cc)
+		     (incf veci)
+		     (setq state :utf8-tail2)))
+	    (:utf8-tail2
+	     (if* (<= #x80 cc #xBF)
+		then (setf (aref vec veci) cc)
+		     (incf veci)
+		     (setq state :utf8-tail1)))
+	    (:utf8-tail1
+	     (if* (<= #x80 cc #xBF)
+		then (setf (aref vec veci) cc)
+		     (setq state :done)))
+	    (:done
+	     (octets-to-string vec :external-format :utf-8
+			       :end veci :string temps)
+	     (setf (schar new-string new-i) (char temps 0)))
+	    (t (error "internal error: bad state: ~s" state)))))))
+     (t
+      (setq state :start)
+      (setf (schar new-string new-i) ch)))))
 
 (defun percent-encode-string (string allowed-bitvector)
   ;; Return a new string based on STRING which has all characters which do
@@ -637,7 +859,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   (defparameter *uri-null-marker* -1)
   )
 
-(defun check-uri-string (string)
+(defun check-xri-string (string)
   ;; Make sure that:
   ;; 1. STRING is a simple string, and
   ;; 2. Two indices into STRING can packed into a single fixnum.
@@ -680,12 +902,14 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defmacro .looking-at (simple thing string index end char-equal)
   ;; INDEX and END are declared FIXNUM by our caller.
   ;; SIMPLE-STRING-P and SCHAR are much faster than STRINGP and CHAR.
+  ;; For the details of what this function returns, see looking-at below.
   (let ((stringp (if simple 'simple-string-p 'stringp))
 	(schar (if simple 'schar 'char))
 	(len (gensym))
 	(i (gensym))
 	(j (gensym))
-	(x (gensym)))
+	(x (gensym))
+	(c (gensym)))
     `(let ((,len 0))
        (declare (fixnum ,len))
        (if* (at-end-p ,index ,end)
@@ -712,11 +936,49 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 					     (,schar ,thing  ,j)))
 			     (return nil)))))
 	elseif (simple-bit-vector-p ,thing) ;; a LOT faster than bit-vector-p
-	  then (when (char-included-p ,thing
-				      (char-code (,schar ,string ,index)))
-		 (the fixnum (1+ ,index)))
+	  then (let ((,c (char-code (,schar ,string ,index))))
+		 (if* (< ,c #.+uri-bit-vector-size+)
+		    then (when (char-included-p ,thing ,c)
+			   (the fixnum (1+ ,index)))
+		  elseif (and .iri-mode.
+			      (or
+			       ;; If the ucschar or iprivate booleans are set,
+			       ;; then check for characters in those ranges.
+			       (and (sbit ,thing #.+bitvector-index-ucschar+)
+				    (ucscharp ,c))
+			       (and (sbit ,thing #.+bitvector-index-iprivate+)
+				    (iprivatep ,c))))
+		    then (the fixnum (1+ ,index))))
 	  else (error "bad object: ~s." ,thing)))))
 )
+
+(defun ucscharp (code)
+  (declare (fixnum code) (optimize (speed 3)))
+  ;; This is straight from the grammer in RFC 3987, for ucschar.
+  (or (<= #x000A0 code #x0D7FF)
+      (<= #x0F900 code #x0FDCF)
+      (<= #x0FDF0 code #x0FFEF)
+      (<= #x10000 code #x1FFFD)
+      (<= #x20000 code #x2FFFD)
+      (<= #x30000 code #x3FFFD)
+      (<= #x40000 code #x4FFFD)
+      (<= #x50000 code #x5FFFD)
+      (<= #x60000 code #x6FFFD)
+      (<= #x70000 code #x7FFFD)
+      (<= #x80000 code #x8FFFD)
+      (<= #x90000 code #x9FFFD)
+      (<= #xA0000 code #xAFFFD)
+      (<= #xB0000 code #xBFFFD)
+      (<= #xC0000 code #xCFFFD)
+      (<= #xD0000 code #xDFFFD)
+      (<= #xE1000 code #xEFFFD)))
+
+(defun iprivatep (code)
+  (declare (fixnum code) (optimize (speed 3)))
+  ;; This is straight from the grammer in RFC 3987, for iprivate.
+  (or (<= #x00E000 code #x00F8FF)
+      (<= #x0F0000 code #x0FFFFD)
+      (<= #x100000 code #x10FFFD)))
 
 ;; Future optimization from rfr:
 ;;   If THING is going to be a string very often,
@@ -1370,6 +1632,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defvar .pct-encoded.)
 
 (defun scan-pct-encoded (string start end)
+  ;; This scans a single percent encoded sequence. It does no conversion.
+  ;; It also sets .pct-encoded., which is a boolean that says "this string
+  ;; has some percent encoded characters in it."
+  ;;
   ;; rule 32: pct-encoded   = "%" HEXDIG HEXDIG
   (declare (fixnum start end))
   (and (> (the fixnum (- end start)) 2) ;; ... at least 3 chars remaining
@@ -1555,63 +1821,71 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun parse-uri-string-rfc3986 (string
-				 &aux (end (length string))
-				      (.pct-encoded. nil)
-				      real-host ipv6 zone-id)
-  (declare (optimize (safety 0))
-	   (fixnum end)) 
+(eval-when (compile eval)
+  ;; Generate the parser for URI or IRI.  The only difference is the name
+  ;; of the parser and for IRIs the binding of .iri-mode. to T.
+  (defmacro gen-xri-parser (name irip)
+    `(defun ,name (string
+		   &aux ,@(when irip '((.iri-mode. t)))
+			(end (length string))
+			(.pct-encoded. nil)
+			real-host ipv6 zone-id)
+       (declare (optimize (safety 0))
+		(fixnum end)) 
 
-  (check-uri-string string)
+       (check-xri-string string)
   
-  (multiple-value-bind (i scheme userinfo host port path query fragment)
-      (state-absolute-uri string 0 end)
-    (when i
-      (if* (and host (consp host))
-	 then (setq real-host (first host))
-	      (setq ipv6 (second host))
-	      (setq zone-id (third host))
-	 else (setq real-host host))
-      (when port
-	(setq port (val string port))
-	(setq port (parse-integer port :radix 10)))
-      (return-from parse-uri-string-rfc3986
-	(values (val string scheme)
-		(val string real-host)
-		(val string userinfo)
-		port
-		(val string path)
-		(val string query)
-		;; This is only non-nil for URNs
-		(val string fragment)
-		.pct-encoded.
-		(val string ipv6)
-		(val string zone-id)))))
+       (multiple-value-bind (i scheme userinfo host port path query fragment)
+	   (state-absolute-uri string 0 end)
+	 (when i
+	   (if* (and host (consp host))
+	      then (setq real-host (first host))
+		   (setq ipv6 (second host))
+		   (setq zone-id (third host))
+	      else (setq real-host host))
+	   (when port
+	     (setq port (val string port))
+	     (setq port (parse-integer port :radix 10)))
+	   (return-from ,name
+	     (values (val string scheme)
+		     (val string real-host)
+		     (val string userinfo)
+		     port
+		     (val string path)
+		     (val string query)
+		     ;; This is only non-nil for URNs
+		     (val string fragment)
+		     .pct-encoded.
+		     (val string ipv6)
+		     (val string zone-id)))))
     
-  (multiple-value-bind (i scheme userinfo host port path query fragment)
-      (state-uri-reference string 0 end)
-    (when i
-      (if* (and host (consp host))
-	 then (setq real-host (first host))
-	      (setq ipv6 (second host))
-	      (setq zone-id (third host))
-	 else (setq real-host host))
-      (when port
-	(setq port (val string port))
-	(setq port (parse-integer port :radix 10)))
-      (return-from parse-uri-string-rfc3986
-	(values (val string scheme)
-		(val string real-host)
-		(val string userinfo)
-		port
-		(val string path)
-		(val string query)
-		(val string fragment)
-		.pct-encoded.
-		(val string ipv6)
-		(val string zone-id)))))
+       (multiple-value-bind (i scheme userinfo host port path query fragment)
+	   (state-uri-reference string 0 end)
+	 (when i
+	   (if* (and host (consp host))
+	      then (setq real-host (first host))
+		   (setq ipv6 (second host))
+		   (setq zone-id (third host))
+	      else (setq real-host host))
+	   (when port
+	     (setq port (val string port))
+	     (setq port (parse-integer port :radix 10)))
+	   (return-from ,name
+	     (values (val string scheme)
+		     (val string real-host)
+		     (val string userinfo)
+		     port
+		     (val string path)
+		     (val string query)
+		     (val string fragment)
+		     .pct-encoded.
+		     (val string ipv6)
+		     (val string zone-id)))))
     
-  (excl::.parse-error "Couldn't parse uri: ~s." string))
+       (excl::.parse-error "Couldn't parse uri: ~s." string))))
+
+(gen-xri-parser parse-uri-string-rfc3986 nil)
+(gen-xri-parser parse-iri-string-rfc3987 :iri-mode)
 
 (defun parse-uri (thing &key (class 'uri) (escape t))
   ;; Parse THING into a URI object, an instance of CLASS.
@@ -1711,15 +1985,17 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	      :fragment fragment
 	      :escaped (when escape pct-encoded)))))
 
-(defun string-to-uri (string)
-  ;; Parse STRING as a URI and either signal an error if it cannot be
-  ;; parsed or return the URI object.  This function differs from parse-uri
-  ;; in that the query is not decoded.  The knowledge of how to properly
-  ;; decode the query is outside the bounds of RFC 3986.
-  (multiple-value-bind (scheme host userinfo port path query fragment
+(eval-when (compile eval)
+  (defmacro gen-string-to-xri (name parser class)
+    `(defun ,name (string)
+       ;; Parse STRING as a xRI and either signal an error if it cannot be
+       ;; parsed or return the xRI object.  This function differs from
+       ;; parse-uri in that the query is not decoded.  The knowledge of how
+       ;; to properly decode the query is outside the bounds of RFC 3986/7.
+       (multiple-value-bind (scheme host userinfo port path query fragment
 			pct-encoded ;; non-nil if any %xx in any slot
 			ipv6 zone-id)
-      (parse-uri-string-rfc3986 string)
+      (,parser string)
 
     (when scheme
       (setq scheme
@@ -1743,7 +2019,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		  (load-time-value (find-package :keyword)))))))
     
     (when (and scheme (eq :urn scheme))
-      (return-from string-to-uri
+      (return-from ,name
 	;; NOTE: for now, we treat URNs like parse-uri, and do no
 	;; decoding.
 	(make-instance 'urn :scheme scheme :nid host :nss path
@@ -1783,7 +2059,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 				  then *fragment-bitvector-strict*
 				  else *fragment-bitvector-non-strict*))))
 
-    (make-instance 'uri
+    (make-instance ,class
       :scheme scheme
       :host host
       :ipv6 ipv6
@@ -1793,7 +2069,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
       :path path
       :query query
       :fragment fragment
-      :escaped pct-encoded)))
+      :escaped pct-encoded)))))
+
+(gen-string-to-xri string-to-uri parse-uri-string-rfc3986 'uri)
+(gen-string-to-xri string-to-iri parse-iri-string-rfc3987 'iri)
 
 (defun parse-path (path-string escape)
   (do* ((xpath-list (delimited-string-to-list path-string #\/))
@@ -1993,6 +2272,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 			 else *fragment-bitvector-non-strict*))
 		else fragment)))))))
   res)
+
+(defmethod iri-to-string ((iri iri))
+  (uri-to-string iri))
 
 (defmethod uri-to-string ((urn urn))
   ;; We can use render-uri here because no decoding/encoding happens for

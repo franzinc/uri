@@ -13,7 +13,20 @@
 
 (defun test-uri ()
   (with-tests (:name "uri")
-    (all-uri-tests)))
+    (all-uri-tests)
+    ;; IRI tests only work in an ICS lisp
+    (ics-target-case
+     (:+ics (all-iri-tests)))))
+
+(defun all-iri-tests ()
+  (let* ((path (format nil "/~c~c~c" (code-char #x926) (code-char #x941)
+		       (code-char #x92a)))
+	 (s (format nil "https://unicodelookup.com~a" path))
+	 i)
+    (test s (iri-to-string (setq i (string-to-iri s)))
+	  :test #'string=)
+    (test 'net.uri::iri (type-of i) :test #'eq)
+    (test path (uri-path i) :test #'string=)))
 
 (defun all-uri-tests ()
   ;; rfe15844
