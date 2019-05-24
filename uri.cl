@@ -36,8 +36,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 6
-  "v6: add IRI support;
+(sys:defpatch "uri" 7
+  "v7: optimizations;
+v6: add IRI support;
 v5: fix misc parser issues;
 v4: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
 v3: fixes for non-strict mode parsing, merge-uris, render-uri and parse-uri;
@@ -101,6 +102,14 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 
 (in-package :net.uri)
 
+(eval-when (compile eval load)
+  ;; A feature added in a patch to Allegro CL 10.1 in July 2019.
+  (when (ignore-errors (find-class 'fixed-index-filling-class))
+    (push :has-clos-fixed-index-feature *features*)))
+
+#-has-clos-fixed-index-feature
+(format t "NOTE: CLOS fixed-index slot optimization is disabled.")
+
 ;; This does not persist past the end of compile-file
 (eval-when (compile) (declaim (optimize (speed 3))))
 
@@ -150,7 +159,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
     :initform nil
     :accessor .uri-parsed-path)
    (hashcode ;; cached sxhash, so we don't have to compute it more than once
-    :initarg :hashcode :initform nil :accessor uri-hashcode)))
+    :initarg :hashcode :initform nil :accessor uri-hashcode))
+  #+has-clos-fixed-index-feature (:metaclass fixed-index-class))
 
 ;; IRI support:
 ;; - The grammar for IRIs is identical to that of URIs, except the allowed
@@ -231,7 +241,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    ;; q-component is stored in the `query'
    ;; f-component is stored in the `fragment'
    (r-component ;; ignored in comparisons
-    :initarg :r-component :initform nil :accessor urn-r-component)))
+    :initarg :r-component :initform nil :accessor urn-r-component))
+  #+has-clos-fixed-index-feature (:metaclass fixed-index-class))
 
 (eval-when (compile eval)
   (defmacro clear-computed-uri-slots (name)
@@ -342,11 +353,12 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	    :escaped escaped :string nil :hashcode nil)))
 
 (defmethod uri-parsed-path ((uri uri))
-  (when (uri-path uri)
-    (when (null (.uri-parsed-path uri))
-      (setf (.uri-parsed-path uri)
-	(parse-path (uri-path uri) (uri-escaped uri))))
-    (.uri-parsed-path uri)))
+  (let ((p (uri-path uri)))
+    (when p
+      (if* (.uri-parsed-path uri)
+	 thenret
+	 else (setf (.uri-parsed-path uri)
+		(parse-path (uri-path uri) (uri-escaped uri)))))))
 
 (defmethod (setf uri-parsed-path) (path-list (uri uri))
   (if* (null path-list)
@@ -888,7 +900,16 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	      (end (the fixnum
 		     (ash i #.+uri-unpack-shift+))))
 	  (declare (fixnum start end))
-	  (subseq string start end))))))
+	  (if* (simple-string-p string)
+	     then ;; This is a good bit faster than calling subseq
+		  (do* ((len (the fixnum (- end start)))
+			(res (make-string len))
+			(src-index start (the fixnum (1+ src-index)))
+			(dst-index 0 (the fixnum (1+ dst-index))))
+		      ((= src-index end) res)
+		    (declare (fixnum len src-index dst-index))
+		    (setf (schar res dst-index) (schar string src-index)))
+	     else (subseq string start end)))))))
 
 (eval-when (compile eval)
 (defmacro at-end-p (i end)
@@ -905,6 +926,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   ;; For the details of what this function returns, see looking-at below.
   (let ((stringp (if simple 'simple-string-p 'stringp))
 	(schar (if simple 'schar 'char))
+	(length (if simple 'excl::lv_size 'length))
 	(len (gensym))
 	(i (gensym))
 	(j (gensym))
@@ -920,9 +942,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	       (when (char= ,thing (,schar ,string ,index))
 		 (the fixnum (1+ ,index)))
 	elseif (,stringp ,thing)
-	  then (when (not (at-end-p (+ ,index
-				       (setq ,len (the fixnum (length ,thing))))
-				    ,end))
+	  then (when (not (at-end-p
+			   (+ ,index
+			      (setq ,len (the fixnum (,length ,thing))))
+			   ,end))
 		 (do* ((,i ,index (the fixnum (1+ ,i)))
 		       (,j 0 (the fixnum (1+ ,j)))
 		       (,x ,len (the fixnum (1- ,x))))
@@ -940,7 +963,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		 (if* (< ,c #.+uri-bit-vector-size+)
 		    then (when (char-included-p ,thing ,c)
 			   (the fixnum (1+ ,index)))
-		  elseif (and .iri-mode.
+		  elseif (and (excl::fast .iri-mode.)
 			      (or
 			       ;; If the ucschar or iprivate booleans are set,
 			       ;; then check for characters in those ranges.
@@ -953,7 +976,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 )
 
 (defun ucscharp (code)
-  (declare (fixnum code) (optimize (speed 3)))
+  (declare (fixnum code) (optimize (safety 0)))
   ;; This is straight from the grammer in RFC 3987, for ucschar.
   (or (<= #x000A0 code #x0D7FF)
       (<= #x0F900 code #x0FDCF)
@@ -974,7 +997,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
       (<= #xE1000 code #xEFFFD)))
 
 (defun iprivatep (code)
-  (declare (fixnum code) (optimize (speed 3)))
+  (declare (fixnum code) (optimize (safety 0)))
   ;; This is straight from the grammer in RFC 3987, for iprivate.
   (or (<= #x00E000 code #x00F8FF)
       (<= #x0F0000 code #x0FFFFD)
@@ -1629,7 +1652,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 			#'scan-pct-encoded))
     (values i (xsubseq start i))))
 
-(defvar .pct-encoded.)
+(defvar .pct-encoded. nil)
 
 (defun scan-pct-encoded (string start end)
   ;; This scans a single percent encoded sequence. It does no conversion.
@@ -1855,7 +1878,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		     (val string query)
 		     ;; This is only non-nil for URNs
 		     (val string fragment)
-		     .pct-encoded.
+		     (excl::fast .pct-encoded.)
 		     (val string ipv6)
 		     (val string zone-id)))))
     
@@ -1878,7 +1901,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		     (val string path)
 		     (val string query)
 		     (val string fragment)
-		     .pct-encoded.
+		     (excl::fast .pct-encoded.)
 		     (val string ipv6)
 		     (val string zone-id)))))
     

@@ -1,17 +1,15 @@
 # Makefile for uri
 
-DEVELOPERMODE = $(shell test -f ../dcl.dxl && echo YES)
+DEVELOPERMODE := $(shell test -f ../dcl.dxl && echo t)
 
-ifdef REFERENCE
-# use mlisp8 so it's comparable to dcl.dxl
-LISP = /fi/cl/10.1/bin/mlisp8-64 -qq -batch
+ifeq ($(DEVELOPERMODE),t)
+LISP ?= ../lisp -I dcl.dxl
 else
-ifeq ($(DEVELOPERMODE),YES)
-LISP = ../lisp -I dcl.dxl -qq -batch
-else
-LISP = /fi/cl/10.1/bin/mlisp8-64 -qq -batch
+LISP ?= /fi/cl/10.1/bin/mlisp8
+STANDALONE = t
 endif
-endif
+
+LISPARGS = -qq -batch
 
 default:
 	@echo there is no default rule in this makefile
@@ -32,32 +30,52 @@ test: FORCE
 ###### ONLY works in dcl.dxl until bug25662 is fixed
 # with-tests sets this from util.test:*test-errors*:
 	echo '(exit test::.total-errors.)' >> $(TMP)
-	$(LISP) +s $(TMP)
+	$(LISP) +s $(TMP) $(LISPARGS)
 
 bm: FORCE
 	rm -f $(TMP) *.fasl
+ifeq ($(STANDALONE),t)
+	echo '(load (compile-file "uri.cl"))' >> $(TMP)
+endif
 	echo '(load (compile-file "bench.cl"))' >> $(TMP)
 	echo '(run-bms)' >> $(TMP)
 	echo '(exit 0)' >> $(TMP)
-	$(LISP) +s $(TMP)
+	$(LISP) +s $(TMP) $(LISPARGS)
 
 profile: FORCE
 	rm -f $(TMP) *.fasl
+ifeq ($(STANDALONE),t)
+	echo '(load (compile-file "uri.cl"))' >> $(TMP)
+endif
 	echo '(load (compile-file "bench.cl"))' >> $(TMP)
 	echo '(profile)' >> $(TMP)
 	echo '(exit 0)' >> $(TMP)
-	$(LISP) +s $(TMP)
+	$(LISP) +s $(TMP) $(LISPARGS)
 
 PREAMBLE = echo TESTED: $(shell hostname) on $(shell date);
 
 bench: FORCE
-	($(PREAMBLE) make bm)                  > results.bm.txt
-	($(PREAMBLE) make profile)             > results.profile.txt
+	($(PREAMBLE) $(MAKE) $(MFLAGS) bm)      > results.bm.txt
+	[ "$(PROFILE)" = "t" ] && \
+	($(PREAMBLE) $(MAKE) $(MFLAGS) profile) > results.profile.txt
 
-benchref: FORCE
-	($(PREAMBLE) make REFERENCE=t bm)      > results.bm.reference.txt
-	($(PREAMBLE) make REFERENCE=t profile) > results.profile.reference.txt
+# The Lisp to use for reference benchmarks, on jesse.
+LISPREF = /acl/layer/tmp/acl10.1/mlisp8
 
+# We clean before the reference benchmark runs so the locally
+# compiled version doesn't get loaded.  We want the version in the
+# reference distribution.
+benchref: clean
+	($(PREAMBLE) $(MAKE) $(MFLAGS) LISP=$(LISPREF) bm) \
+	    > results.bm.reference.txt
+	[ "$(PROFILE)" = "t" ] && \
+	($(PREAMBLE) $(MAKE) $(MFLAGS) LISP=$(LISPREF) profile) \
+	    > results.profile.reference.txt
+
+all: export PROFILE = t
 all: bench benchref
+
+clean: FORCE
+	rm -f *.fasl
 
 FORCE:

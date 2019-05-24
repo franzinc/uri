@@ -21,10 +21,11 @@
 (defparameter *test-uri-3* (parse-uri *test-uri-string-3*))
 )
 
-(defun uri-perf-parse ()
-  (parse-uri #.*test-uri-string-1*)
-  (parse-uri #.*test-uri-string-2*)
-  (parse-uri #.*test-uri-string-3*))
+(defun uri-perf-parse (n)
+  (dotimes (i n)
+    (parse-uri #.*test-uri-string-1*)
+    (parse-uri #.*test-uri-string-2*)
+    (parse-uri #.*test-uri-string-3*)))
 
 (eval-when (compile eval)
 (defmacro test-clear-cache (uri)
@@ -32,21 +33,41 @@
   `(setf (net.uri::uri-string ,uri) nil))
 )
 
-(defun uri-perf-render-uri ()
-  (test-clear-cache #.*test-uri-1*)
-  (render-uri #.*test-uri-1* nil)
-  (test-clear-cache #.*test-uri-2*)
-  (render-uri #.*test-uri-2* nil)
-  (test-clear-cache #.*test-uri-3*)
-  (render-uri #.*test-uri-3* nil))
+(defun uri-perf-render-uri (n)
+  (dotimes (i n)
+    (test-clear-cache #.*test-uri-1*)
+    (render-uri #.*test-uri-1* nil)
+    (test-clear-cache #.*test-uri-2*)
+    (render-uri #.*test-uri-2* nil)
+    (test-clear-cache #.*test-uri-3*)
+    (render-uri #.*test-uri-3* nil)))
 
-(defun uri-perf-format ()
-  (test-clear-cache #.*test-uri-1*)
-  (format nil "~a" #.*test-uri-1*)
-  (test-clear-cache #.*test-uri-2*)
-  (format nil "~a" #.*test-uri-2*)
-  (test-clear-cache #.*test-uri-3*)
-  (format nil "~a" #.*test-uri-3*))
+(defun uri-perf-format (n &aux (*print-pretty* nil))
+  (dotimes (i n)
+    (test-clear-cache #.*test-uri-1*)
+    (format nil "~a" #.*test-uri-1*)
+    (test-clear-cache #.*test-uri-2*)
+    (format nil "~a" #.*test-uri-2*)
+    (test-clear-cache #.*test-uri-3*)
+    (format nil "~a" #.*test-uri-3*)))
+
+(defun uri-perf-slot-access (n)
+  (declare (optimize (speed 3)))
+  (let ((u (excl::fast *test-uri-1*))
+	a b c d e f g)
+    (dotimes (i n)
+      (setq a (uri-scheme u)
+	    b (uri-userinfo u)
+	    c (uri-port u)
+	    d (uri-path u)
+	    e (uri-query u)
+	    f (uri-fragment u)
+	    g (uri-plist u)
+	    ;; uri-authority is not an accessor
+	    ))
+    ;; use the values so the compiler doesn't optimize away the slot
+    ;; accesses
+    (values a b c d e f g)))
 
 ;; make sure the perf tests are correct:
 (dolist (s '(#.*test-uri-string-1* #.*test-uri-string-2* #.*test-uri-string-3*))
@@ -59,21 +80,20 @@
   (gc t)
   (dotimes (i 3)
     (format t "~%")
-    (do-bm-1 n func)))
+    (time (funcall func n))))
 
-(defun do-bm-1 (n func)
-  (time (dotimes (i n) (funcall func))))
+;; Number of iterations set so that each test takes ~10-12s on walter
+;; (non-smp), for the original 10.1 implementation.
+(defun run-bm1 () (do-bm                 800000 #'uri-perf-parse))
+(defun run-bm2 () (do-bm                2400000 #'uri-perf-render-uri))
+(defun run-bm3 () (do-bm                1250000 #'uri-perf-format))
+(defun run-bm4 () (do-bm #.most-positive-fixnum #'uri-perf-slot-access))
 
 (defun run-bms ()
-  ;; Number of iterations set so that each test takes ~10-12s on walter
-  ;; (non-smp), for the original 10.1 implementation.
-  (do-bm 1050000 #'uri-perf-parse)
-  (do-bm 2400000 #'uri-perf-render-uri)
-  (do-bm  700000 #'uri-perf-format))
-
-(defun profile1 () (do-bm-1 1050000 #'uri-perf-parse))
-(defun profile2 () (do-bm-1 2400000 #'uri-perf-render-uri))
-(defun profile3 () (do-bm-1  700000 #'uri-perf-format))
+  (run-bm1)
+  (run-bm2)
+  (run-bm3)
+  (run-bm4))
 
 (eval-when (compile)
   (defmacro do-profile (type func)
@@ -90,9 +110,47 @@
   (push "start" prof:*hidden-functions*)
   (push "(lisp-trampolines)" prof:*hidden-functions*)
   (push "(after-libnss_dns.so.2-lib)" prof:*hidden-functions*)
-  (do-profile :space #'profile1)
-  (do-profile :time #'profile1)
-  (do-profile :space #'profile2)
-  (do-profile :time #'profile2)
-  (do-profile :space #'profile3)
-  (do-profile :time #'profile3))
+  (profile-bm1)
+  (profile-bm2)
+  (profile-bm3)
+  (profile-bm4))
+
+(defun profile-all ()
+  ;; Makes the output more useful...
+  (push "new_standard_instance" prof:*hidden-functions*)
+  (push "(lisp-heap)" prof:*hidden-functions*)
+  (push "start" prof:*hidden-functions*)
+  (push "(lisp-trampolines)" prof:*hidden-functions*)
+  (push "(after-libnss_dns.so.2-lib)" prof:*hidden-functions*)
+  (profile-all-bm1)
+  (profile-all-bm2)
+  (profile-all-bm3)
+  (profile-all-bm4))
+
+(defun profile-bm1 ()
+  (do-profile :time #'run-bm1))
+
+(defun profile-all-bm1 ()
+  (do-profile :space #'run-bm1)
+  (do-profile :time #'run-bm1))
+
+(defun profile-bm2 ()
+  (do-profile :time #'run-bm2))
+
+(defun profile-all-bm2 ()
+  (do-profile :space #'run-bm2)
+  (do-profile :time #'run-bm2))
+
+(defun profile-bm3 ()
+  (do-profile :time #'run-bm3))
+
+(defun profile-all-bm3 ()
+  (do-profile :space #'run-bm3)
+  (do-profile :time #'run-bm3))
+
+(defun profile-bm4 ()
+  (do-profile :time #'run-bm4))
+
+(defun profile-all-bm4 ()
+  (do-profile :space #'run-bm4)
+  (do-profile :time #'run-bm4))
