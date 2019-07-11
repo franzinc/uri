@@ -47,6 +47,30 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
   :post-loadable t)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Start hack to bring in the needed patches to support the CLOS fixed
+;;;; index metaclass used below.
+#+(version= 10 1)
+(flet ((force-load-patch (id)
+	 (let* ((update-directory "sys:;update;")
+		(patch-name (format nil "p~a.001" id))
+		(file (merge-pathnames patch-name update-directory)))
+	   (if* (probe-file file)
+	      then (load file)
+	      else (error "Need to have ~s downloaded." patch-name)))))
+  (when (not (member :developer excl::.build-mode.))
+    (let ((old-val
+	   ;; Save the old :lisp value on sys::*patches* so we can restore
+	   ;; it, to remove traces these patches were loaded.  We do this
+	   ;; because patches can only be loaded once, and while we are
+	   ;; loading it here, it will be loaded again later.
+	   (copy-list (cdr (assoc :lisp sys::*patches*)))))
+      (dolist (p '("ma023" "ma024" "ma025"))
+	(when (not (excl::find-earlier-patch p 1 :lisp))
+	  (force-load-patch p)))
+      (setf (cdr (assoc :lisp sys::*patches*)) old-val))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (eval-when (compile eval load) (require :util-string))
 
 (defpackage :net.uri
