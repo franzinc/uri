@@ -36,8 +36,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 7
-  "v7: optimizations;
+(sys:defpatch "uri" 8
+  "v8: fix to dependent patch loading for v7;
+v7: optimizations;
 v6: add IRI support;
 v5: fix misc parser issues;
 v4: string-to-uri/uri-to-string, parse-uri query pct encoding of +/=/&;
@@ -51,13 +52,28 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 ;;;; Start hack to bring in the needed patches to support the CLOS fixed
 ;;;; index metaclass used below.
 #+(version= 10 1)
-(flet ((force-load-patch (id)
-	 (let* ((update-directory "sys:;update;")
-		(patch-name (format nil "p~a.001" id))
-		(file (merge-pathnames patch-name update-directory)))
-	   (if* (probe-file file)
-	      then (load file)
-	      else (error "Need to have ~s downloaded." patch-name)))))
+(labels
+    ((find-patch (name version type)
+       ;; Return T if a patch specified by NAME and VERSION is on
+       ;; sys::*patches* in the TYPE sublist.
+       (do* ((pp sys:*patches* (cdr pp))
+	     (sublist (car pp) (car pp)))
+	   ((null pp))
+	 (when (eq type (car sublist))
+	   (do* ((ents (cdr sublist) (cdr ents))
+		 (ent (car ents) (car ents)))
+	       ((null ents))
+	     (when (and (string= name (first ent))
+			(= version (second ent))
+			(null (fourth ent)))
+	       (return-from find-patch t))))))
+     (force-load-patch (name)
+       (let* ((update-directory "sys:;update;")
+	      (patch-name (format nil "p~a.001" name))
+	      (file (merge-pathnames patch-name update-directory)))
+	 (if* (probe-file file)
+	    then (load file)
+	    else (error "Need to have ~s downloaded." patch-name)))))
   (when (not (member :developer excl::.build-mode.))
     (let ((old-val
 	   ;; Save the old :lisp value on sys::*patches* so we can restore
@@ -66,8 +82,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	   ;; loading it here, it will be loaded again later.
 	   (copy-list (cdr (assoc :lisp sys::*patches*)))))
       (dolist (p '("ma023" "ma024" "ma025"))
-	(when (not (excl::find-earlier-patch p 1 :lisp))
-	  (force-load-patch p)))
+	(when (not (find-patch p 1 :lisp)) (force-load-patch p)))
       (setf (cdr (assoc :lisp sys::*patches*)) old-val))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
