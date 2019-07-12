@@ -36,8 +36,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 8
-  "v8: fix to dependent patch loading for v7;
+(sys:defpatch "uri" 9
+  "v9: future-proof the problem fixed by v8;
+v8: fix to dependent patch loading for v7;
 v7: optimizations;
 v6: add IRI support;
 v5: fix misc parser issues;
@@ -47,44 +48,6 @@ v2: fixes for non-strict mode parsing;
 v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
   :post-loadable t)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Start hack to bring in the needed patches to support the CLOS fixed
-;;;; index metaclass used below.
-#+(version= 10 1)
-(labels
-    ((find-patch (name version type)
-       ;; Return T if a patch specified by NAME and VERSION is on
-       ;; sys::*patches* in the TYPE sublist.
-       (do* ((pp sys:*patches* (cdr pp))
-	     (sublist (car pp) (car pp)))
-	   ((null pp))
-	 (when (eq type (car sublist))
-	   (do* ((ents (cdr sublist) (cdr ents))
-		 (ent (car ents) (car ents)))
-	       ((null ents))
-	     (when (and (string= name (first ent))
-			(= version (second ent))
-			(null (fourth ent)))
-	       (return-from find-patch t))))))
-     (force-load-patch (name)
-       (let* ((update-directory "sys:;update;")
-	      (patch-name (format nil "p~a.001" name))
-	      (file (merge-pathnames patch-name update-directory)))
-	 (if* (probe-file file)
-	    then (load file)
-	    else (error "Need to have ~s downloaded." patch-name)))))
-  (when (not (member :developer excl::.build-mode.))
-    (let ((old-val
-	   ;; Save the old :lisp value on sys::*patches* so we can restore
-	   ;; it, to remove traces these patches were loaded.  We do this
-	   ;; because patches can only be loaded once, and while we are
-	   ;; loading it here, it will be loaded again later.
-	   (copy-list (cdr (assoc :lisp sys::*patches*)))))
-      (dolist (p '("ma023" "ma024" "ma025"))
-	(when (not (find-patch p 1 :lisp)) (force-load-patch p)))
-      (setf (cdr (assoc :lisp sys::*patches*)) old-val))))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (eval-when (compile eval load) (require :util-string))
 
@@ -140,6 +103,53 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    #:pathname-to-uri))
 
 (in-package :net.uri)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Start hack to bring in the needed patches to support the CLOS fixed
+;;;; index metaclass used below.
+
+#+(version= 10 1)
+(labels
+    ;; Below, a PATCH-DESCRIPTOR is a cons of two items: the abrreviated
+    ;; patch name (everything after the 'p' of the pathname-name) and the
+    ;; patch version (an integer).
+    ;;
+    ;; This code is designed to only work with :lisp type patches.
+    ((patch-already-loaded-p (patch-descriptor)
+       ;; Return T if the patch given by PATCH-DESCRIPTOR, or a newer one,
+       ;; has been loaded.
+       (let ((patch-name (car patch-descriptor))
+	     (version (cdr patch-descriptor)))
+	 (dolist (patch-entry (cdr (assoc :lisp sys:*patches*)))
+	   (when (and (string= patch-name (first patch-entry))
+		      (>= (second patch-entry) version)
+		      (null (fourth patch-entry)))
+	     (return-from patch-already-loaded-p t)))))
+     (force-load-patch (patch-descriptor)
+       ;; Unconditionally load the patch given by PATCH-DESCRIPTOR,
+       ;; even though a newer one might exist.  We know we only need
+       ;; the given patch, and the regular patch loading mechanism will
+       ;; later load the latest of it, if there is a newer one.
+       (let* ((name    (car patch-descriptor))
+	      (version (cdr patch-descriptor))
+	      (update-directory "sys:;update;")
+	      (file-name (format nil "p~a.~3,'0d" name version))
+	      (path (merge-pathnames file-name update-directory)))
+	 (if* (probe-file path)
+	    then (load path)
+	    else (error "~s has not been downloaded." file-name)))))
+  (when (not (member :developer excl::.build-mode.))
+    (let ((old-val
+	   ;; Save the current :lisp value on sys::*patches* so we can
+	   ;; restore it after we load these patches, so there is no
+	   ;; record these patches were loaded.  We do this because patches
+	   ;; can only be loaded once, and the official loading of patches
+	   ;; takes will take place later in the startup process.
+	   (copy-list (cdr (assoc :lisp sys::*patches*)))))
+      (dolist (pd '(("ma023" . 1) ("ma024" . 1) ("ma025" . 1)))
+	(unless (patch-already-loaded-p pd) (force-load-patch pd)))
+      (setf (cdr (assoc :lisp sys::*patches*)) old-val))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (eval-when (compile eval load)
   ;; A feature added in a patch to Allegro CL 10.1 in July 2019.
