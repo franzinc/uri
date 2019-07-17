@@ -56,8 +56,9 @@ PREAMBLE = echo TESTED: $(shell hostname) on $(shell date);
 
 bench: FORCE
 	($(PREAMBLE) $(MAKE) $(MFLAGS) bm)      > results.bm.txt
-	[ "$(PROFILE)" = "t" ] && \
-	($(PREAMBLE) $(MAKE) $(MFLAGS) profile) > results.profile.txt
+	if [ "$(PROFILE)" = "t" ]; then \
+	    ($(PREAMBLE) $(MAKE) $(MFLAGS) profile) > results.profile.txt; \
+	fi
 
 # The Lisp to use for reference benchmarks, on jesse.
 LISPREF = /acl/layer/tmp/acl10.1/mlisp8
@@ -68,9 +69,10 @@ LISPREF = /acl/layer/tmp/acl10.1/mlisp8
 benchref: clean
 	($(PREAMBLE) $(MAKE) $(MFLAGS) LISP=$(LISPREF) bm) \
 	    > results.bm.reference.txt
-	[ "$(PROFILE)" = "t" ] && \
-	($(PREAMBLE) $(MAKE) $(MFLAGS) LISP=$(LISPREF) profile) \
-	    > results.profile.reference.txt
+	if [ "$(PROFILE)" = "t" ]; then \
+	    ($(PREAMBLE) $(MAKE) $(MFLAGS) LISP=$(LISPREF) profile) \
+	        > results.profile.reference.txt; \
+	fi
 
 all: export PROFILE = t
 all: bench benchref

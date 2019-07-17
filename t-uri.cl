@@ -358,8 +358,84 @@
   (test-error ;; length=33
    (parse-uri "urn:a23456789012345678901234567890123:foo")
    :condition-type 'parse-error)
+
+  (test-clear-computed-uri-slots-hack)
        
   (more-uri-tests))
+
+(defun test-clear-computed-uri-slots-hack ()
+  ;; Need to test setting these slots:
+  ;;   scheme, userinfo, port, path, query and fragment
+  ;; and testing whether the string and parsed-path slots have been
+  ;; updated.
+  (flet ((doit (generic &aux (u (parse-uri "http://foo.com/bar/")))
+	   (format t "test-clear-computed-uri-slots-hack: generic=~s~%"
+		   generic)
+	   ;; compute the computed slots
+	   (identity (format nil "~s" u))
+	   (if* generic
+	      then (setf (generic-uri-scheme u) :https)
+	      else (setf (uri-scheme u) :https))
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   (test t (not (null (net.uri::.uri-parsed-path u))))
+	   (test "https://foo.com/bar/" (format nil "~a" u) :test #'string=)
+    
+	   (if* generic
+	      then (setf (generic-uri-userinfo u) "joe")
+	      else (setf (uri-userinfo u) "joe"))
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   (test t (not (null (net.uri::.uri-parsed-path u))))
+	   (test "https://joe@foo.com/bar/" (format nil "~a" u) :test #'string=)
+
+	   (if* generic
+	      then (setf (generic-uri-port u) 81)
+	      else (setf (uri-port u) 81))
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   (test t (not (null (net.uri::.uri-parsed-path u))))
+	   (test "https://joe@foo.com:81/bar/"
+		 (format nil "~a" u) :test #'string=)
+
+	   (if* generic
+	      then (setf (generic-uri-path u) "/newpath/")
+	      else (setf (uri-path u) "/newpath/"))
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   ;; only this one should be nil
+	   (test nil (net.uri::.uri-parsed-path u))
+	   (test "https://joe@foo.com:81/newpath/"
+		 (format nil "~a" u) :test #'string=)
+
+	   (if* generic
+	      then (setf (generic-uri-query u) "foo=bar")
+	      else (setf (uri-query u) "foo=bar"))
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   (test t (not (null (net.uri::.uri-parsed-path u))))
+	   (test "https://joe@foo.com:81/newpath/?foo=bar"
+		 (format nil "~a" u) :test #'string=)
+
+	   (if* generic
+	      then (setf (generic-uri-fragment u) "frag")
+	      else (setf (uri-fragment u) "frag"))
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   (test t (not (null (net.uri::.uri-parsed-path u))))
+	   (test "https://joe@foo.com:81/newpath/?foo=bar#frag"
+		 (format nil "~a" u) :test #'string=)
+
+	   ;; This failed before the CLOS fixed index change
+	   ;; (already generic)
+	   (setf (uri-host u) "foo2.com")
+	   (test nil (net.uri::uri-string u))
+	   (test nil (net.uri::uri-hashcode u))
+	   (test t (not (null (net.uri::.uri-parsed-path u))))
+	   (test "https://joe@foo2.com:81/newpath/?foo=bar#frag"
+		 (format nil "~a" u) :test #'string=)))
+    (doit nil)
+    (doit t)))
 
 (defun more-uri-tests ()
   ;; Tests only work if this is nil:

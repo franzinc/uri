@@ -60,15 +60,22 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    #:iri-p
    #:copy-uri
 
-   #:uri-scheme				; and slots
-   #:uri-host
-   #:uri-ipv6
-   #:uri-zone-id
+   #:uri-scheme
    #:uri-userinfo
    #:uri-port
    #:uri-path
    #:uri-query
    #:uri-fragment
+   #:generic-uri-scheme
+   #:generic-uri-userinfo
+   #:generic-uri-port
+   #:generic-uri-path
+   #:generic-uri-query
+   #:generic-uri-fragment
+
+   #:uri-host
+   #:uri-ipv6
+   #:uri-zone-id
    #:uri-plist
    #:uri-authority			; pseudo-slot accessor
 
@@ -138,7 +145,13 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	 (if* (probe-file path)
 	    then (load path)
 	    else (error "~s has not been downloaded." file-name)))))
-  (when (not (member :developer excl::.build-mode.))
+  ;; We can only do the following in a user distribution, and looking
+  ;; for Makefile.devel seems to be a good test.
+  (when (not (or
+	      ;; for patchmgr
+	      (member :developer excl::.build-mode.)
+	      ;; for source builds
+	      (probe-file "sys:Makefile.devel")))
     (let ((old-val
 	   ;; Save the current :lisp value on sys::*patches* so we can
 	   ;; restore it after we load these patches, so there is no
@@ -167,15 +180,27 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 (defclass uri ()
   (
 ;;;; external:
-   (scheme :initarg :scheme :initform nil :accessor uri-scheme)
-   ;; uri-host is computed and cached.  See copious comments below.
+   ;; uri-host is computed and cached.  See the hand-written method below.
    ;; uri-ipv6 and uri-zone-id are read-only by users, so they are in the
    ;;   internal section below.
-   (userinfo :initarg :userinfo :initform nil :accessor uri-userinfo)
-   (port :initarg :port :initform nil :accessor uri-port)
-   (path :initarg :path :initform nil :accessor uri-path)
-   (query :initarg :query :initform nil :accessor uri-query)
-   (fragment :initarg :fragment :initform nil :accessor uri-fragment)
+
+;;;; These slots are special: when they are changed, the string and
+;;;; hashcode slots need to be set to nil.  For path, parsed-path also
+;;;; needs to be set to nil.  See define-special-uri-slot-setters below.
+   (scheme :initarg :scheme :initform nil :reader uri-scheme
+	   :writer fast-uri-scheme-writer)
+   (userinfo :initarg :userinfo :initform nil :reader uri-userinfo
+	     :writer fast-uri-userinfo-writer)
+   (port :initarg :port :initform nil :reader uri-port
+	 :writer fast-uri-port-writer)
+   (path :initarg :path :initform nil :reader uri-path
+	 :writer fast-uri-path-writer)
+   (query :initarg :query :initform nil :reader uri-query
+	  :writer fast-uri-query-writer)
+   (fragment :initarg :fragment :initform nil :reader uri-fragment
+	     :writer fast-uri-fragment-writer)
+;;;; ...end special slots.
+
    (plist :initarg :plist :initform nil :accessor uri-plist)
 
 ;;;; internal:
@@ -210,6 +235,46 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    (hashcode ;; cached sxhash, so we don't have to compute it more than once
     :initarg :hashcode :initform nil :accessor uri-hashcode))
   #+has-clos-fixed-index-feature (:metaclass fixed-index-class))
+
+(eval-when (compile eval)
+  (defmacro define-special-uri-slot-setters (slot-reader slot-writer)
+    ;; This macro:
+    ;; - defines the public setf methods for certain URI slots, using the
+    ;;   raw :writer for the slot, which is given by SLOT-WRITER.
+    ;;   SLOT-READER is the public :reader for the slot.
+    ;; - defines the public "generic-" version slot readers, which obey
+    ;;   all CLOS rules.
+    ;;
+    ;; The setf method needs to set the STRING and HASHCODE slots to nil,
+    ;; and in the case of PATH it must also set the PARSED-PATH slot to
+    ;; nil.  All three of these slots are computed cached values which
+    ;; become invalid when the slots on which they depend change.
+    (let ((setf-func (intern (format nil ".inv-~a" slot-reader)))
+	  (generic-reader (intern (format nil "generic-~a" slot-reader))))
+      `(progn
+	 (defun ,setf-func (self v)
+	   ;; NOTE: a future optimization would be to check the value of
+	   ;;       the slot to see if it changed, and if not, do nothing.
+	   ;;       This would prevent having to recalculate the cached
+	   ;;       values at the cost of the comparision.
+	   (setf (uri-string self) nil)
+	   (setf (uri-hashcode self) nil)
+	   ,@(when (eq slot-reader 'uri-path)
+	       '((setf (.uri-parsed-path self) nil)))
+	   (,slot-writer v self))
+	 (defsetf ,slot-reader ,setf-func)
+	 ;; define the generic- versions
+	 (defmethod ,generic-reader ((self uri))
+	   (,slot-reader self))
+	 (defsetf ,generic-reader ,setf-func))))
+  )
+
+(define-special-uri-slot-setters uri-scheme   fast-uri-scheme-writer)
+(define-special-uri-slot-setters uri-userinfo fast-uri-userinfo-writer)
+(define-special-uri-slot-setters uri-port     fast-uri-port-writer)
+(define-special-uri-slot-setters uri-path     fast-uri-path-writer)
+(define-special-uri-slot-setters uri-query    fast-uri-query-writer)
+(define-special-uri-slot-setters uri-fragment fast-uri-fragment-writer)
 
 ;; IRI support:
 ;; - The grammar for IRIs is identical to that of URIs, except the allowed
@@ -267,18 +332,23 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	(.uri-zone-id uri) zone-id))
 
 (defmethod (setf uri-host) (v (uri uri))
-  (if* (null v)
-     then (set-host uri nil nil nil)
-   elseif (stringp v)
-     then (multiple-value-bind (found whole ipv6 zone-id)
-	      ;; This embodies knowledge of the URI IPv6 syntax
-	      (match-re "^(.*:.*?)(%.*)?$" v)
-	    (declare (ignore whole))
-	    (if* found
-	       then (set-host uri nil ipv6 zone-id)
-	       else (set-host uri v nil nil))
-	    v)
-     else (error "host value must be a string: ~s." v)))
+  (prog1
+      (if* (null v)
+	 then (set-host uri nil nil nil)
+       elseif (stringp v)
+	 then (multiple-value-bind (found whole ipv6 zone-id)
+		  ;; This embodies knowledge of the URI IPv6 syntax
+		  (match-re "^(.*:.*?)(%.*)?$" v)
+		(declare (ignore whole))
+		(if* found
+		   then (set-host uri nil ipv6 zone-id)
+		   else (set-host uri v nil nil))
+		v)
+	 else (error "host value must be a string: ~s." v))
+    ;; This slot doesn't use clear-computed-uri-slots, so we must do this
+    ;; manually:
+    (setf (uri-string uri) nil)
+    (setf (uri-hashcode uri) nil)))
 
 (defclass urn (uri)
   ;; NOTE: the q-component is stored in the `query' slot and the
@@ -292,28 +362,6 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    (r-component ;; ignored in comparisons
     :initarg :r-component :initform nil :accessor urn-r-component))
   #+has-clos-fixed-index-feature (:metaclass fixed-index-class))
-
-(eval-when (compile eval)
-  (defmacro clear-computed-uri-slots (name)
-    `(defmethod (setf ,name) :around (new-value (self uri))
-       (declare (ignore new-value))
-       (prog1 (call-next-method)
-	 (setf (uri-string self) nil)
-	 ,@(when (eq name 'uri-path)    `((setf (.uri-parsed-path self) nil)))
-	 (setf (uri-hashcode self) nil))))
-  )
-
-(clear-computed-uri-slots uri-scheme)
-;; Do not add the following slots, because they are handled specially.
-;; See set-host above.
-;;  .host
-;;  .ipv6
-;;  .zone-id
-(clear-computed-uri-slots uri-userinfo)
-(clear-computed-uri-slots uri-port)
-(clear-computed-uri-slots uri-path)
-(clear-computed-uri-slots uri-query)
-(clear-computed-uri-slots uri-fragment)
 
 (defmethod make-load-form ((self uri) &optional env)
   (declare (ignore env))
@@ -937,7 +985,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   (the fixnum
     (+ start (the fixnum
 	       (ash end #.+uri-pack-shift+)))))
-       
+
 (defun val (string i)
   ;; Return the subsequence of STRING given by I, which was encoded with
   ;; XSUBSEQ.
