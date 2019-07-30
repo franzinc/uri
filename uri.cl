@@ -266,7 +266,11 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	 ;; define the generic- versions
 	 (defmethod ,generic-reader ((self uri))
 	   (,slot-reader self))
-	 (defsetf ,generic-reader ,setf-func))))
+	 (defsetf ,generic-reader ,setf-func)
+	 ;; This setf method is for compatibility, with code compiled using
+	 ;; the previous, non-fixed-index version of this module.
+	 (defmethod (setf ,slot-reader) (v (self uri))
+	   (,slot-writer v self)))))
   )
 
 (define-special-uri-slot-setters uri-scheme   fast-uri-scheme-writer)
