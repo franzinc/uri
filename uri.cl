@@ -36,8 +36,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 9
-  "v9: future-proof the problem fixed by v8;
+(sys:defpatch "uri" 10
+  "v10: new condition: net.uri:uri-parse-error;
+v9: future-proof the problem fixed by v8;
 v8: fix to dependent patch loading for v7;
 v7: optimizations;
 v6: add IRI support;
@@ -59,6 +60,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
    #:iri				; subclass of uri
    #:iri-p
    #:copy-uri
+   
+   #:uri-parse-error
+   #:uri-parse-error-string
 
    #:uri-scheme
    #:uri-userinfo
@@ -402,6 +406,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
      :nid ,(urn-nid self)
      :nss ,(urn-nss self)
      :r-component ,(urn-r-component self)))
+
+(define-condition uri-parse-error (parse-error)
+  ((string :initarg :string :reader uri-parse-error-string)))
 
 (defmethod uri-p ((thing uri)) t)
 (defmethod uri-p ((thing t)) nil)
@@ -2006,7 +2013,13 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		     (val string ipv6)
 		     (val string zone-id)))))
     
-       (excl::.parse-error "Couldn't parse uri: ~s." string))))
+       (uri-parse-error string "Couldn't parse uri: ~s." string))))
+
+(defun uri-parse-error (string format-string &rest format-arguments)
+  (error 'uri-parse-error
+	 :string string
+	 :format-control format-string
+	 :format-arguments format-arguments))
 
 (gen-xri-parser parse-uri-string-rfc3986 nil)
 (gen-xri-parser parse-iri-string-rfc3987 :iri-mode)

@@ -29,6 +29,15 @@
     (test path (uri-path i) :test #'string=)))
 
 (defun all-uri-tests ()
+  ;; rfe16295
+  (let ((s "https://web.archive.org/web/20131203162826/http://www.apl.jhu.edu/~hall/lisp.html"))
+    (handler-case (parse-uri s)
+      (uri-parse-error (c)
+	(test s (uri-parse-error-string c) :test #'string=))
+      (error (c)
+	(error "wrong type of error signaled for parse: ~s ~s"
+	       c s))))
+  
   ;; rfe15844
   (let ((s ;; uses +, = and & all encoded:
 	 "http://franz.com/foo?val=a%2b%3d%26b+is+c"))
@@ -330,11 +339,11 @@
        
   (test-error ;; can't end in -
    (parse-uri "urn:a2345678901234567890123456789-:foo")
-   :condition-type 'parse-error)
+   :condition-type 'uri-parse-error)
        
   (test-error ;; too short -- NID min is 2
    (parse-uri "urn:a:foo")
-   :condition-type 'parse-error)
+   :condition-type 'uri-parse-error)
        
   (test "ab" (urn-nid (parse-uri "urn:ab:foo"))
 	:test #'string=)
@@ -353,11 +362,11 @@
 	:test #'string=)
   (test-error ;; can't end in -
    (parse-uri "urn:a234567890123456789012345678901-:foo")
-   :condition-type 'parse-error)
+   :condition-type 'uri-parse-error)
        
   (test-error ;; length=33
    (parse-uri "urn:a23456789012345678901234567890123:foo")
-   :condition-type 'parse-error)
+   :condition-type 'uri-parse-error)
 
   (test-clear-computed-uri-slots-hack)
        
@@ -566,15 +575,15 @@
     (test (parse-uri "xxx?%41") (parse-uri "xxx?A") :test 'uri=)
     (test "A" (uri-query (parse-uri "xxx?%41")) :test 'string=)
 
-    (test-error (parse-uri " ") :condition-type 'parse-error)
-    (test-error (parse-uri "foo ") :condition-type 'parse-error)
-    (test-error (parse-uri " foo ") :condition-type 'parse-error)
-    (test-error (parse-uri "<foo") :condition-type 'parse-error)
-    (test-error (parse-uri "foo>") :condition-type 'parse-error)
-    (test-error (parse-uri "<foo>") :condition-type 'parse-error)
-    (test-error (parse-uri "%") :condition-type 'parse-error)
-    (test-error (parse-uri "foo%xyr") :condition-type 'parse-error)
-    (test-error (parse-uri "\"foo\"") :condition-type 'parse-error)
+    (test-error (parse-uri " ") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "foo ") :condition-type 'uri-parse-error)
+    (test-error (parse-uri " foo ") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "<foo") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "foo>") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "<foo>") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "%") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "foo%xyr") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "\"foo\"") :condition-type 'uri-parse-error)
     (test "%20" (format nil "~a" (parse-uri "%20")) :test 'string=)
     (test "&" (format nil "~a" (parse-uri "%26")) :test 'string=)
     (test "foo%23bar" (format nil "~a" (parse-uri "foo%23bar"))
@@ -670,10 +679,10 @@
       (test "com" (urn-nid (parse-uri urn)) :test #'string=)
       (test "foo-the-bar" (urn-nss (parse-uri urn)) :test #'string=))
     
-    (test-error (parse-uri "urn:") :condition-type 'parse-error)
-    (test-error (parse-uri "urn:foo") :condition-type 'parse-error)
-    (test-error (parse-uri "urn:foo$") :condition-type 'parse-error)
-    (test-error (parse-uri "urn:foo_") :condition-type 'parse-error)
+    (test-error (parse-uri "urn:") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "urn:foo") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "urn:foo$") :condition-type 'uri-parse-error)
+    (test-error (parse-uri "urn:foo_") :condition-type 'uri-parse-error)
     (test "urn:foo:foo&bar"
 		 (format nil "~a" (parse-uri "urn:foo:foo&bar"))
 		 :test #'string=)
@@ -737,7 +746,7 @@
 	"http://foo.com/bar?a=zip|zop")))
     (test-error
      (net.uri:parse-uri "http://foo.com/bar?a=zip|zop")
-     :condition-type 'parse-error)
+     :condition-type 'uri-parse-error)
     
     (let ((net.uri::*strict-parse* nil))
       (test-no-error
@@ -750,7 +759,7 @@
     (test-error
      (net.uri:parse-uri
       "http://scbc.booksonline.com/cgi-bin/ndCGI.exe/Develop/pagClubHome.hrfTIOLI_onWebEvent(hrfTIOLI)?selGetClubOffer.TB_OFFER_ID_OFFER=344879%2e0&selGetClubOffer.TB_OFFER_ID_ITEM=34487%2e0&selGetClubOffer.TB_OFFER_ID_OFFER=344879%2e0&^CSpCommand.currRowNumber=5&hrfTIOLI=The+Visual+Basic+6+Programmer%27s+Toolkit&SPIDERSESSION=%3f%3f%3f%3f%3f%5f%3f%3f%3f%40%5b%3f%3f%3f%3fBOs%5cH%3f%3f%3f%3f%3f%3f%3f%3f%3fMMpXO%5f%40JG%7d%40%5c%5f%3f%3f%3fECK%5dt%3fLDT%3fTBD%3fDDTxPEToBS%40%5f%5dBDgXVoKBSDs%7cDT%3fK%3fd%3fTIb%7ceHbkeMfh%60LRpO%5cact%5eUC%7bMu%5fyWUGzLUhP%5ebpdWRka%5dFO%3f%5dBopW%3f%40HMrxbMRd%60LOpuMVga%3fv%3fTS%3fpODT%40O&%5euniqueValue=977933764843")
-     :condition-type 'parse-error)))
+     :condition-type 'uri-parse-error)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
