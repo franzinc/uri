@@ -36,8 +36,9 @@ v1: handle no-authority URIs with `hdfs' scheme the same as `file'."
   :post-loadable t)
 
 #+(version= 10 1)
-(sys:defpatch "uri" 10
-  "v10: new condition: net.uri:uri-parse-error;
+(sys:defpatch "uri" 11
+  "v11: fix handling of %25 in the URI path;
+v10: new condition: net.uri:uri-parse-error;
 v9: future-proof the problem fixed by v8;
 v8: fix to dependent patch loading for v7;
 v7: optimizations;
@@ -2263,9 +2264,10 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 
 (defmethod render-uri ((uri uri) stream
 		       &aux (encode (uri-escaped uri))
-			    (*print-pretty* nil))
+			    (*print-pretty* nil)
+			    res)
   (declare (optimize (safety 0)))
-  (when (null (uri-string uri))
+  (when (null (setq res (uri-string uri)))
     (setf (uri-string uri)
       (let ((scheme (uri-scheme uri))
 	    (host (.uri-host uri))
@@ -2273,60 +2275,65 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	    zone-id ;; don't compute until needed
 	    (userinfo (uri-userinfo uri))
 	    (port (uri-port uri))
-	    (parsed-path (uri-parsed-path uri))
+	    (path (uri-path uri))
 	    (query (uri-query uri))
 	    (fragment (uri-fragment uri)))
-	(string+
-	  (when scheme
-	    (case *current-case-mode*
-	      ((:case-insensitive-upper :case-sensitive-upper)
-	       (string-downcase (symbol-name scheme)))
-	      ((:case-insensitive-lower :case-sensitive-lower)
-	       (symbol-name scheme))))
-	  (when scheme ":")
-	  (when (or host ipv6 (eq :file scheme) (eq :hdfs scheme))
-	    "//")
-	  (when userinfo
-	    (if* encode
-	       then (percent-encode-string userinfo *userinfo-bitvector*)
-	       else userinfo))
-	  (when userinfo "@")
-	  (if* ipv6
-	     then (if* (setq zone-id (.uri-zone-id uri))
-		     then (string+ "[" ipv6 "%25" zone-id "]")
-		     else (string+ "[" ipv6 "]"))
-	   elseif host
-	     then (if* encode
-		     then (percent-encode-string host *reg-name-bitvector*)
-		     else host))
-	  (when port ":")
-	  (when port port)
-	  (if* parsed-path
-	     then (render-parsed-path parsed-path encode)
-	   elseif (and *render-include-slash-on-null-path*
-		       #|no path but:|# scheme host)
-	     then "/")
-	  (when query "?")
-	  (when query
-	    (if* encode
-	       then (percent-encode-string
-		     query
-		     (if* *strict-parse*
-			then *query-bitvector-strict*
-			else *query-bitvector-non-strict*))
-	       else query))
-	  (when fragment "#")
-	  (when fragment
-	    (if* encode
-	       then (percent-encode-string
-		     fragment
-		     (if* *strict-parse*
-			then *fragment-bitvector-strict*
-			else *fragment-bitvector-non-strict*))
-	       else fragment))))))
+	(setq res
+	  (string+
+	   (when scheme
+	     (case *current-case-mode*
+	       ((:case-insensitive-upper :case-sensitive-upper)
+		(string-downcase (symbol-name scheme)))
+	       ((:case-insensitive-lower :case-sensitive-lower)
+		(symbol-name scheme))))
+	   (when scheme ":")
+	   (when (or host ipv6 (eq :file scheme) (eq :hdfs scheme))
+	     "//")
+	   (when userinfo
+	     (if* encode
+		then (percent-encode-string userinfo *userinfo-bitvector*)
+		else userinfo))
+	   (when userinfo "@")
+	   (if* ipv6
+	      then (if* (setq zone-id (.uri-zone-id uri))
+		      then (string+ "[" ipv6 "%25" zone-id "]")
+		      else (string+ "[" ipv6 "]"))
+	    elseif host
+	      then (if* encode
+		      then (percent-encode-string host *reg-name-bitvector*)
+		      else host))
+	   (when port ":")
+	   (when port port)
+	   (if* path
+	      then path
+	    elseif (and *render-include-slash-on-null-path*
+			#|no path but:|# scheme host)
+	      then "/")
+	   (when query "?")
+	   (when query
+	     (if* encode
+		then (percent-encode-string
+		      query
+		      (if* *strict-parse*
+			 then *query-bitvector-strict*
+			 else *query-bitvector-non-strict*))
+		else query))
+	   (when fragment "#")
+	   (when fragment
+	     (if* encode
+		then (percent-encode-string
+		      fragment
+		      (if* *strict-parse*
+			 then *fragment-bitvector-strict*
+			 else *fragment-bitvector-non-strict*))
+		else fragment))))))
+    
+    ;; calculate this cached slot
+    (uri-parsed-path uri))
+
   (if* stream
-     then (princ (uri-string uri) stream)
-     else (uri-string uri)))
+     then (princ res stream)
+     else res))
 
 (defmethod render-uri ((urn urn) stream
 		       &aux (*print-pretty* nil))
@@ -2363,7 +2370,7 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 	    zone-id ;; don't compute until needed
 	    (userinfo (uri-userinfo uri))
 	    (port (uri-port uri))
-	    (parsed-path (uri-parsed-path uri))
+	    (path (uri-path uri))
 	    (query (uri-query uri))
 	    (fragment (uri-fragment uri)))
 	(setq res
@@ -2392,8 +2399,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		      else host))
 	   (when port ":")
 	   (when port port)
-	   (if* parsed-path
-	      then (render-parsed-path parsed-path encode)
+	   (if* path
+	      then path
 	    elseif (and *render-include-slash-on-null-path*
 			#|no path but:|# scheme host)
 	      then "/")
@@ -2407,7 +2414,11 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 		      (if* *strict-parse*
 			 then *fragment-bitvector-strict*
 			 else *fragment-bitvector-non-strict*))
-		else fragment)))))))
+		else fragment))))))
+    
+    ;; calculate this cached slot
+    (uri-parsed-path uri))
+  
   res)
 
 (defmethod iri-to-string ((iri iri))

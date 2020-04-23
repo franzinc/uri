@@ -38,6 +38,17 @@
 	(error "wrong type of error signaled for parse: ~s ~s"
 	       c s))))
   
+  ;; bug26155
+  (test "foo%25bar"
+	(uri-path (parse-uri "foo%25bar"))
+	:test #'string=)
+  (test "/test/foo%25bar.lisp"
+	(uri-to-string (string-to-uri "/test/foo%25bar.lisp"))
+	:test #'string=)
+  (test "/test/foo%25bar.lisp"
+	(render-uri (parse-uri "/test/foo%25bar.lisp") nil)
+	:test #'string=)
+  
   ;; rfe15844
   (let ((s ;; uses +, = and & all encoded:
 	 "http://franz.com/foo?val=a%2b%3d%26b+is+c"))
