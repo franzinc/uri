@@ -1076,9 +1076,9 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
 			      (or
 			       ;; If the ucschar or iprivate booleans are set,
 			       ;; then check for characters in those ranges.
-			       (and (sbit ,thing #.+bitvector-index-ucschar+)
+			       (and (= 1 (sbit ,thing #.+bitvector-index-ucschar+))
 				    (ucscharp ,c))
-			       (and (sbit ,thing #.+bitvector-index-iprivate+)
+			       (and (= 1 (sbit ,thing #.+bitvector-index-iprivate+))
 				    (iprivatep ,c))))
 		    then (the fixnum (1+ ,index))))
 	  else (error "bad object: ~s." ,thing)))))
