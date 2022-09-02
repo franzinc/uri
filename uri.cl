@@ -51,6 +51,8 @@ v1: bring up to spec with RFCs 3986, 6874 and 8141."
   :type :system
   :post-loadable t)
 
+;; Always loaded from 11.0 on
+#-(version>= 11 0)
 (eval-when (compile eval load) (require :util-string))
 
 (defpackage :net.uri
