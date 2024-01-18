@@ -14,9 +14,13 @@
 (defun test-uri ()
   (with-tests (:name "uri")
     (all-uri-tests)
-    ;; IRI tests only work in an ICS lisp
+    ;; IRI tests only work in a :char16 lisp
+    #-(version>= 12 0)
     (ics-target-case
-     (:+ics (all-iri-tests)))))
+     (:+ics (all-iri-tests)))
+    #+(version>= 12 0)
+    (char-style-case
+     (:char16 (all-iri-tests)))))
 
 (defun all-iri-tests ()
   (let* ((path (format nil "/~c~c~c" (code-char #x926) (code-char #x941)
