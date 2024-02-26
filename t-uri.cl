@@ -19,8 +19,8 @@
     (ics-target-case
      (:+ics (all-iri-tests)))
     #+(version>= 12 0)
-    (char-style-case
-     (:char16 (all-iri-tests)))))
+    (with-style-case :char
+      (:char16 (all-iri-tests)))))
 
 (defun all-iri-tests ()
   (let* ((path (format nil "/~c~c~c" (code-char #x926) (code-char #x941)
